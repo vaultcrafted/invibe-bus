@@ -178,50 +178,6 @@ export default function Home() {
           </button>
         )}
 
-        {(totMezzi > 0 || activity.length > 0) && (
-          <div className="dash-row">
-            {totMezzi > 0 && (
-              <div className="card enter" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, '--d': '160ms' }}>
-                <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
-                  <FleetDonut pct={pctFlotta} />
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <span className="tab-num" style={{ fontSize: 21, fontWeight: 800, color: liberiFlotta < 0 ? 'var(--stop)' : 'var(--text-primary)' }}>
-                      <CountNum value={liberiFlotta} />
-                    </span>
-                    <span style={{ fontSize: 9.5, color: 'var(--text-tertiary)', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>{t.fleetFree}</span>
-                  </div>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{t.fleetTitle}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {t.fleetDesc(totUsedFlotta, totCapienza, totMezzi, transfers.length)}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activity.length > 0 && (
-              <div className="card enter" style={{ '--d': '190ms' }}>
-                <div style={{ padding: '13px 16px 10px', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <Activity size={15} /> {t.activityTitle}
-                </div>
-                {activity.map((ev, i) => {
-                  const Icon = ev.icon
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 16px', borderTop: '1px solid var(--line)' }}>
-                      <div className={'pill pill-' + ev.tone} style={{ width: 26, height: 26, borderRadius: 'var(--r-full)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>
-                        <Icon size={13} />
-                      </div>
-                      <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{ev.text}</span>
-                      <span style={{ fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', flexShrink: 0, whiteSpace: 'nowrap', marginTop: 2 }}>{timeAgo(ev.at)}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
         {loading && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[0, 1, 2].map(i => <div key={i} className="skeleton" style={{ animationDelay: (i * 90) + 'ms' }} />)}
@@ -275,6 +231,50 @@ export default function Home() {
           )
         })}
         </div>
+
+        {(totMezzi > 0 || activity.length > 0) && (
+          <div className="dash-row" style={{ marginTop: 4 }}>
+            {totMezzi > 0 && (
+              <div className="card enter" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, '--d': '60ms' }}>
+                <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
+                  <FleetDonut pct={pctFlotta} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="tab-num" style={{ fontSize: 21, fontWeight: 800, color: liberiFlotta < 0 ? 'var(--stop)' : 'var(--text-primary)' }}>
+                      <CountNum value={liberiFlotta} />
+                    </span>
+                    <span style={{ fontSize: 9.5, color: 'var(--text-tertiary)', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>{t.fleetFree}</span>
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{t.fleetTitle}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {t.fleetDesc(totUsedFlotta, totCapienza, totMezzi, transfers.length)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activity.length > 0 && (
+              <div className="card enter" style={{ '--d': '90ms' }}>
+                <div style={{ padding: '13px 16px 10px', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <Activity size={15} /> {t.activityTitle}
+                </div>
+                {activity.map((ev, i) => {
+                  const Icon = ev.icon
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 16px', borderTop: '1px solid var(--line)' }}>
+                      <div className={'pill pill-' + ev.tone} style={{ width: 26, height: 26, borderRadius: 'var(--r-full)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>
+                        <Icon size={13} />
+                      </div>
+                      <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{ev.text}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', flexShrink: 0, whiteSpace: 'nowrap', marginTop: 2 }}>{timeAgo(ev.at)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
