@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import * as XLSX from 'xlsx'
 import {
   ArrowLeft, Upload, Plus, Bus, Trash2, Share2, Download,
-  ChevronDown, Check, X, Users
+  ChevronDown, Check, X, Users, UserPlus
 } from 'lucide-react'
 import { Gauge, CountNum, LiveDot } from '../components/Widgets'
 
@@ -19,6 +19,7 @@ export default function Transfer() {
   const [gruppi, setGruppi] = useState([])
   const [mezzi, setMezzi] = useState([])
   const [assegnazioni, setAssegnazioni] = useState([])
+  const [staff, setStaff] = useState([])
   const [loading, setLoading] = useState(true)
 
   const [selected, setSelected] = useState(new Set())
@@ -30,29 +31,34 @@ export default function Transfer() {
   const [preview, setPreview] = useState(null)
   const [addingBus, setAddingBus] = useState(false)
   const [customCap, setCustomCap] = useState('')
+  const [addingStaffFor, setAddingStaffFor] = useState(null)
+  const [staffNome, setStaffNome] = useState('')
+  const [staffPax, setStaffPax] = useState('1')
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
 
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600) }
 
   async function load() {
-    const [t, g, m, a] = await Promise.all([
+    const [t, g, m, a, s] = await Promise.all([
       supabase.from('bus_transfer').select('*').eq('id', id).single(),
       supabase.from('bus_gruppi').select('*').eq('transfer_id', id).order('codice'),
       supabase.from('bus_mezzi').select('*').eq('transfer_id', id).order('ordine'),
       supabase.from('bus_assegnazioni').select('*').eq('transfer_id', id),
+      supabase.from('bus_staff').select('*').eq('transfer_id', id).order('created_at'),
     ])
     setTransfer(t.data)
     setGruppi(g.data || [])
     setMezzi(m.data || [])
     setAssegnazioni(a.data || [])
+    setStaff(s.data || [])
     setLoading(false)
   }
 
   useEffect(() => {
     load()
     const ch = supabase.channel('bus-' + id)
-    for (const table of ['bus_gruppi', 'bus_mezzi', 'bus_assegnazioni', 'bus_transfer']) {
+    for (const table of ['bus_gruppi', 'bus_mezzi', 'bus_assegnazioni', 'bus_transfer', 'bus_staff']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: table === 'bus_transfer' ? `id=eq.${id}` : `transfer_id=eq.${id}` }, () => load())
     }
     ch.subscribe()
@@ -70,8 +76,9 @@ export default function Transfer() {
   const usedByMezzo = useMemo(() => {
     const m = {}
     for (const a of assegnazioni) m[a.mezzo_id] = (m[a.mezzo_id] || 0) + a.pax
+    for (const s of staff) m[s.mezzo_id] = (m[s.mezzo_id] || 0) + s.pax
     return m
-  }, [assegnazioni])
+  }, [assegnazioni, staff])
 
   const totPax = gruppi.reduce((s, g) => s + g.pax, 0)
   const totAss = Object.values(assByGruppo).reduce((s, v) => s + v, 0)
@@ -140,8 +147,27 @@ export default function Transfer() {
 
   async function removeBus(m) {
     const used = usedByMezzo[m.id] || 0
-    if (used > 0 && !confirm(`${m.nome} ha ${used} pax assegnati: tornano tra i gruppi da assegnare. Eliminare?`)) return
+    if (used > 0 && !confirm(`${m.nome} ha ${used} persone assegnate (gruppi e staff): tornano tra i gruppi da assegnare, lo staff viene rimosso. Eliminare?`)) return
     await supabase.from('bus_mezzi').delete().eq('id', m.id)
+    load()
+  }
+
+  async function addStaff(m) {
+    const nome = staffNome.trim()
+    const pax = parseInt(staffPax, 10) || 1
+    if (!nome) return
+    const liberi = m.capienza - (usedByMezzo[m.id] || 0)
+    if (pax > liberi) { notify(`Non ci stanno: solo ${liberi} posti liberi su ${m.nome}.`); return }
+    setBusy(true)
+    const { error } = await supabase.from('bus_staff').insert({ transfer_id: id, mezzo_id: m.id, nome, pax })
+    setBusy(false)
+    if (error) { notify('Errore: ' + error.message); return }
+    setAddingStaffFor(null); setStaffNome(''); setStaffPax('1')
+    load()
+  }
+
+  async function removeStaff(s) {
+    await supabase.from('bus_staff').delete().eq('id', s.id)
     load()
   }
 
@@ -204,6 +230,9 @@ export default function Transfer() {
         const g = gruppi.find(x => x.id === a.gruppo_id)
         return { Codice: g?.codice, 'Pickup point': g?.pickup_point, Alloggio: g?.alloggio || '', Pax: a.pax }
       }).sort((a, b) => String(a['Pickup point']).localeCompare(String(b['Pickup point']), 'it'))
+      for (const s of staff.filter(s => s.mezzo_id === m.id)) {
+        rows.push({ Codice: 'STAFF · ' + s.nome, 'Pickup point': '', Alloggio: '', Pax: s.pax })
+      }
       rows.push({ Codice: 'TOTALE', 'Pickup point': '', Alloggio: '', Pax: rows.reduce((s, r) => s + r.Pax, 0) })
       const ws = XLSX.utils.json_to_sheet(rows)
       XLSX.utils.book_append_sheet(wb, ws, (m.nome + ' (' + m.capienza + ')').slice(0, 31))
@@ -282,21 +311,22 @@ export default function Transfer() {
           const liberi = m.capienza - used
           const list = assegnazioni.filter(a => a.mezzo_id === m.id)
           const full = liberi === 0
+          const staffQui = staff.filter(s => s.mezzo_id === m.id)
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
-                <div className={'stub-tag' + (full ? ' stub-tag--full' : '')}>
-                  <span className="lbl">BUS</span>
-                  <span className="num">{String(i + 1).padStart(2, '0')}</span>
+                <div className={'stub-tag' + (full ? ' stub-tag--full' : liberi < 0 ? ' stub-tag--over' : '')}>
+                  <span className="lbl">{full ? 'PIENO' : 'LIBERI'}</span>
+                  <span className="num"><CountNum value={liberi} /></span>
                 </div>
                 <div className="stub-head-body">
                   <span className="name">{m.nome}</span>
-                  <span className="meta"><CountNum value={used} />/{m.capienza} POSTI · LIBERI <CountNum value={liberi} /></span>
+                  <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
                 </div>
               </div>
               <div style={{ padding: 14 }}>
                 <Gauge pct={(used / m.capienza) * 100} tone={full ? 'full' : liberi < 0 ? 'over' : ''} />
-                {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 12 }}>Vuoto. Seleziona i gruppi sotto e assegnali qui.</div>}
+                {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 12 }}>Vuoto. Seleziona i gruppi sotto e assegnali qui.</div>}
                 {list.map(a => {
                   const g = gruppi.find(x => x.id === a.gruppo_id)
                   if (!g) return null
@@ -314,11 +344,37 @@ export default function Transfer() {
                     </div>
                   )
                 })}
+                {staffQui.map(s => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
+                    <span className="pill pill-signal">staff</span>
+                    <span style={{ flex: 1, fontWeight: 600 }}>{s.nome}</span>
+                    <span className="tab-num" style={{ fontSize: 14 }}>{s.pax}</span>
+                    <button className="no-print" onClick={() => removeStaff(s)} aria-label={'Togli ' + s.nome} style={{ color: 'var(--stop)', display: 'flex', padding: 4 }}><X size={15} /></button>
+                  </div>
+                ))}
+
                 {selected.size > 0 && (
                   <button className="btn btn-primary no-print" style={{ width: '100%', marginTop: 12 }} onClick={() => assignTo(m)} disabled={busy}>
                     Assegna qui ({selPax} pax)
                   </button>
                 )}
+
+                {addingStaffFor === m.id ? (
+                  <div className="no-print" style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                    <input className="input-field" style={{ flex: 1, minWidth: 120 }} placeholder="Nome staff" value={staffNome}
+                      onChange={e => setStaffNome(e.target.value)} autoFocus onKeyDown={e => e.key === 'Enter' && addStaff(m)} />
+                    <input className="input-field" style={{ width: 64 }} type="number" min="1" inputMode="numeric" value={staffPax}
+                      onChange={e => setStaffPax(e.target.value)} onKeyDown={e => e.key === 'Enter' && addStaff(m)} />
+                    <button className="btn btn-primary" onClick={() => addStaff(m)} disabled={!staffNome.trim() || busy}>Ok</button>
+                    <button className="btn btn-ghost" onClick={() => { setAddingStaffFor(null); setStaffNome(''); setStaffPax('1') }}>Annulla</button>
+                  </div>
+                ) : (
+                  <button className="btn btn-outline no-print" style={{ width: '100%', marginTop: 12 }}
+                    onClick={() => { setAddingStaffFor(m.id); setStaffNome(''); setStaffPax('1') }}>
+                    <UserPlus size={15} /> Aggiungi staff
+                  </button>
+                )}
+
                 <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                   <button onClick={() => removeBus(m)} style={{ color: 'var(--stop)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, padding: 4 }}>
                     <Trash2 size={13} /> Elimina bus

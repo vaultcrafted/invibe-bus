@@ -10,26 +10,29 @@ export default function Share() {
   const [gruppi, setGruppi] = useState([])
   const [mezzi, setMezzi] = useState([])
   const [assegnazioni, setAssegnazioni] = useState([])
+  const [staff, setStaff] = useState([])
   const [updatedAt, setUpdatedAt] = useState(null)
 
   async function load() {
-    const [t, g, m, a] = await Promise.all([
+    const [t, g, m, a, s] = await Promise.all([
       supabase.from('bus_transfer').select('*').eq('id', id).maybeSingle(),
       supabase.from('bus_gruppi').select('*').eq('transfer_id', id),
       supabase.from('bus_mezzi').select('*').eq('transfer_id', id).order('ordine'),
       supabase.from('bus_assegnazioni').select('*').eq('transfer_id', id),
+      supabase.from('bus_staff').select('*').eq('transfer_id', id),
     ])
     setTransfer(t.data ?? null)
     setGruppi(g.data || [])
     setMezzi(m.data || [])
     setAssegnazioni(a.data || [])
+    setStaff(s.data || [])
     setUpdatedAt(new Date())
   }
 
   useEffect(() => {
     load()
     const ch = supabase.channel('share-' + id)
-    for (const table of ['bus_gruppi', 'bus_mezzi', 'bus_assegnazioni']) {
+    for (const table of ['bus_gruppi', 'bus_mezzi', 'bus_assegnazioni', 'bus_staff']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `transfer_id=eq.${id}` }, () => load())
     }
     ch.subscribe()
@@ -106,23 +109,25 @@ export default function Share() {
             .sort((a, b) =>
               (a.g.pickup_point || '').localeCompare(b.g.pickup_point || '', 'it') ||
               a.g.codice.localeCompare(b.g.codice, 'it'))
-          const used = list.reduce((s, a) => s + a.pax, 0)
-          const full = used >= m.capienza
+          const staffQui = staff.filter(s => s.mezzo_id === m.id)
+          const used = list.reduce((s, a) => s + a.pax, 0) + staffQui.reduce((s, x) => s + x.pax, 0)
+          const liberi = m.capienza - used
+          const full = liberi <= 0
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
                 <div className={'stub-tag' + (full ? ' stub-tag--full' : '')}>
-                  <span className="lbl">BUS</span>
-                  <span className="num">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="lbl">{full ? 'PIENO' : 'LIBERI'}</span>
+                  <span className="num"><CountNum value={liberi} /></span>
                 </div>
                 <div className="stub-head-body">
                   <span className="name">{m.nome}</span>
-                  <span className="meta"><CountNum value={used} />/{m.capienza} POSTI</span>
+                  <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
                 </div>
               </div>
               <div style={{ padding: '6px 14px 12px' }}>
                 <div style={{ marginBottom: 10 }}><Gauge pct={(used / m.capienza) * 100} tone={full ? 'full' : ''} /></div>
-                {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>Vuoto.</div>}
+                {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>Vuoto.</div>}
                 {list.map(a => (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
                     <span style={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -133,7 +138,14 @@ export default function Share() {
                     <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{a.pax}{a.pax < a.g.pax ? `/${a.g.pax}` : ''}</span>
                   </div>
                 ))}
-                {list.length > 0 && (
+                {staffQui.map(s => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
+                    <span className="pill pill-signal">staff</span>
+                    <span style={{ flex: 1, fontWeight: 600, textAlign: 'right' }}>{s.nome}</span>
+                    <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{s.pax}</span>
+                  </div>
+                ))}
+                {(list.length > 0 || staffQui.length > 0) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 11, fontWeight: 700, fontSize: 14 }}>
                     <span>Totale</span><span className="tab-num">{used} pax</span>
                   </div>

@@ -133,8 +133,9 @@ a { color: inherit; }
   transition: background .35s ease;
 }
 .stub-tag--full { background: linear-gradient(165deg, #23a870 0%, #0f5c3d 100%); }
+.stub-tag--over { background: linear-gradient(165deg, #e0553a 0%, #8f2e1c 100%); }
 .stub-tag .lbl { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; color: var(--signal); font-weight: 700; transition: color .35s ease; }
-.stub-tag--full .lbl { color: rgba(255,255,255,.9); }
+.stub-tag--full .lbl, .stub-tag--over .lbl { color: rgba(255,255,255,.9); }
 .stub-tag .num { font-family: var(--mono); font-size: 26px; font-weight: 800; line-height: 1; margin-top: 3px; }
 .stub-head-body { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
 .stub-head-body .name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
