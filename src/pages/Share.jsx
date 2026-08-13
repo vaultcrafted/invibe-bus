@@ -3,11 +3,9 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Bus, Printer, RefreshCw } from 'lucide-react'
 
-// Vista per l'agenzia bus: sola lettura, senza login.
-// Funziona solo se il transfer ha il link attivo (condiviso = true, verificato dalle policy RLS).
 export default function Share() {
   const { id } = useParams()
-  const [transfer, setTransfer] = useState(undefined) // undefined = caricamento, null = non disponibile
+  const [transfer, setTransfer] = useState(undefined)
   const [gruppi, setGruppi] = useState([])
   const [mezzi, setMezzi] = useState([])
   const [assegnazioni, setAssegnazioni] = useState([])
@@ -53,13 +51,15 @@ export default function Share() {
   }, [gruppi, assegnazioni])
 
   if (transfer === undefined) {
-    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>Caricamento…</div>
+    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', fontSize: 13 }}>caricamento…</div>
   }
 
   if (transfer === null) {
     return (
-      <div style={{ padding: '60px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
-        <div className="rollsign" style={{ borderRadius: 'var(--r-md)', justifyContent: 'center', marginBottom: 18 }}>INVIBE BUS</div>
+      <div style={{ padding: '64px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
+        <div className="board-strip" style={{ borderRadius: 'var(--r-md)', justifyContent: 'center', marginBottom: 20 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bus size={15} className="flag" /> Invibe Bus</span>
+        </div>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Questo link non è attivo</div>
         <div style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
           La condivisione di questa lista è stata disattivata. Chiedi a chi te l'ha mandata di riattivarla.
@@ -74,17 +74,17 @@ export default function Share() {
   return (
     <div style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: 32 }}>
 
-      <div className="rollsign" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <span>INVIBE BUS</span>
+      <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
+        <span>Invibe Bus</span>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
         <span className="sub">{totAss}/{totPax} PAX</span>
       </div>
 
-      <div className="no-print" style={{ display: 'flex', gap: 8, padding: '12px 16px', alignItems: 'center' }}>
-        <button className="btn btn-ghost" onClick={() => window.print()}><Printer size={16} /> Stampa</button>
-        <button className="btn btn-ghost" onClick={load}><RefreshCw size={16} /> Aggiorna</button>
+      <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', alignItems: 'center' }}>
+        <button className="btn btn-outline" onClick={() => window.print()}><Printer size={16} /> Stampa</button>
+        <button className="btn btn-outline" onClick={load}><RefreshCw size={16} /> Aggiorna</button>
         {updatedAt && (
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--mono)' }}>
             agg. {updatedAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
@@ -92,12 +92,12 @@ export default function Share() {
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {mezzi.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '30px 20px' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '36px 20px' }}>
             Nessun bus ancora inserito per questo transfer.
           </div>
         )}
 
-        {mezzi.map(m => {
+        {mezzi.map((m, i) => {
           const list = assegnazioni
             .filter(a => a.mezzo_id === m.id)
             .map(a => ({ ...a, g: gruppoById[a.gruppo_id] }))
@@ -106,24 +106,31 @@ export default function Share() {
               (a.g.pickup_point || '').localeCompare(b.g.pickup_point || '', 'it') ||
               a.g.codice.localeCompare(b.g.codice, 'it'))
           const used = list.reduce((s, a) => s + a.pax, 0)
+          const full = used >= m.capienza
           return (
-            <div key={m.id} className="card">
-              <div className="rollsign">
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bus size={15} /> {m.nome}</span>
-                <span className="sub">{used}/{m.capienza} POSTI</span>
+            <div key={m.id} className="stub">
+              <div className="stub-head">
+                <div className="stub-tag" style={{ background: full ? 'var(--go)' : 'var(--ink)' }}>
+                  <span className="lbl" style={{ color: full ? '#fff' : 'var(--signal)' }}>BUS</span>
+                  <span className="num">{String(i + 1).padStart(2, '0')}</span>
+                </div>
+                <div className="stub-head-body">
+                  <span className="name">{m.nome}</span>
+                  <span className="meta">{used}/{m.capienza} POSTI</span>
+                </div>
               </div>
-              <div style={{ padding: '4px 14px 12px' }}>
+              <div style={{ padding: '6px 14px 12px' }}>
                 {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>Vuoto.</div>}
                 {list.map(a => (
-                  <div key={a.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
                     <span style={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.g.codice}</span>
                     <span style={{ flex: 1, color: 'var(--text-secondary)', fontSize: 13, textAlign: 'right' }}>{a.g.pickup_point}</span>
-                    <span style={{ fontWeight: 700, minWidth: 34, textAlign: 'right' }}>{a.pax}{a.pax < a.g.pax ? `/${a.g.pax}` : ''}</span>
+                    <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{a.pax}{a.pax < a.g.pax ? `/${a.g.pax}` : ''}</span>
                   </div>
                 ))}
                 {list.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, fontWeight: 700, fontSize: 14 }}>
-                    <span>Totale</span><span>{used} pax</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 11, fontWeight: 700, fontSize: 14 }}>
+                    <span>Totale</span><span className="tab-num">{used} pax</span>
                   </div>
                 )}
               </div>
@@ -133,15 +140,15 @@ export default function Share() {
 
         {nonAssegnati.length > 0 && (
           <div className="card">
-            <div style={{ padding: '11px 14px', background: 'var(--warn-light)', color: 'var(--warn)', fontWeight: 700, fontSize: 14 }}>
+            <div style={{ padding: '12px 14px', background: 'var(--warn-bg)', color: 'var(--warn)', fontWeight: 700, fontSize: 14 }}>
               Ancora da assegnare · {nonAssegnati.reduce((s, g) => s + g.restanti, 0)} pax
             </div>
             <div style={{ padding: '4px 14px 12px' }}>
               {nonAssegnati.map(g => (
-                <div key={g.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
+                <div key={g.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
                   <span style={{ fontWeight: 600 }}>{g.codice}</span>
                   <span style={{ flex: 1, color: 'var(--text-secondary)', fontSize: 13, textAlign: 'right' }}>{g.pickup_point}</span>
-                  <span style={{ fontWeight: 700, minWidth: 34, textAlign: 'right' }}>{g.restanti}</span>
+                  <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{g.restanti}</span>
                 </div>
               ))}
             </div>

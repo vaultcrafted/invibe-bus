@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
-import { Plus, Bus, LogOut, ChevronRight, Trash2 } from 'lucide-react'
+import { Plus, Bus, ChevronRight, Trash2 } from 'lucide-react'
 
 export default function Home() {
   const navigate = useNavigate()
-  const { signOut } = useAuth()
   const [transfers, setTransfers] = useState([])
   const [stats, setStats] = useState({})
   const [creating, setCreating] = useState(false)
@@ -49,14 +47,16 @@ export default function Home() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto' }}>
-      <div className="rollsign" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bus size={16} /> Invibe Bus</span>
-        <button onClick={signOut} aria-label="Esci" style={{ color: 'inherit', display: 'flex' }}><LogOut size={16} /></button>
+      <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <Bus size={16} className="flag" /> Invibe Bus
+        </span>
+        <span className="sub">{transfers.length} manifest{transfers.length === 1 ? 'o' : 'i'}</span>
       </div>
 
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {creating ? (
-          <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <label className="input-label" htmlFor="nn">Nome del transfer</label>
             <input id="nn" className="input-field" placeholder="es. C4 arrivo · sab 20 giu" value={nome}
               onChange={e => setNome(e.target.value)} autoFocus onKeyDown={e => e.key === 'Enter' && create()} />
@@ -66,43 +66,50 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <button className="btn btn-primary" onClick={() => setCreating(true)}>
-            <Plus size={18} /> Nuovo transfer
+          <button className="btn btn-signal" onClick={() => setCreating(true)} style={{ padding: '16px 18px', fontSize: 15.5 }}>
+            <Plus size={19} /> Nuovo transfer
           </button>
         )}
 
-        {loading && <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 24 }}>Caricamento…</div>}
+        {loading && <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 24, fontFamily: 'var(--mono)', fontSize: 13 }}>caricamento…</div>}
 
         {!loading && transfers.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px 20px' }}>
-            Nessun transfer. Creane uno e carica l'Excel dei gruppi per iniziare.
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '52px 24px' }}>
+            <div style={{ fontSize: 34, marginBottom: 10 }}>🚌</div>
+            <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--text-primary)' }}>Il tabellone è vuoto</div>
+            <div style={{ fontSize: 14 }}>Crea un transfer e carica l'Excel dei gruppi per iniziare.</div>
           </div>
         )}
 
         {transfers.map(t => {
           const s = stats[t.id] || { tot: 0, ass: 0 }
           const done = s.tot > 0 && s.ass >= s.tot
+          const pct = s.tot ? Math.min(100, (s.ass / s.tot) * 100) : 0
           return (
-            <div key={t.id} className="card">
+            <div key={t.id} className="stub">
               <button onClick={() => navigate('/t/' + t.id)}
-                style={{ width: '100%', padding: 14, display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 4 }}>{t.nome}</div>
-                  <div style={{ fontSize: 13, color: done ? 'var(--success)' : 'var(--text-secondary)' }}>
-                    {s.tot === 0 ? 'Da importare' : `${s.ass} / ${s.tot} pax assegnati${done ? ' · completo' : ''}`}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 4, textAlign: 'left' }}>
+                <div className="stub-tag" style={{ background: done ? 'var(--go)' : 'var(--ink)' }}>
+                  <span className="lbl" style={{ color: done ? '#fff' : 'var(--signal)' }}>{done ? 'FULL' : 'BUS'}</span>
+                  <span className="num tab-num">{s.tot ? Math.round(pct) + '%' : '—'}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0, padding: '14px 14px 14px 18px' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--mono)' }}>
+                    {s.tot === 0 ? 'da importare' : `${s.ass}/${s.tot} pax`}
                     {t.condiviso ? ' · link attivo' : ''}
                   </div>
                   {s.tot > 0 && (
                     <div className={'gauge' + (done ? ' full' : '')} style={{ marginTop: 8 }}>
-                      <div style={{ width: Math.min(100, (s.ass / s.tot) * 100) + '%' }} />
+                      <div style={{ width: pct + '%' }} />
                     </div>
                   )}
                 </div>
-                <ChevronRight size={18} color="var(--text-tertiary)" />
+                <ChevronRight size={18} color="var(--text-tertiary)" style={{ marginRight: 14, flexShrink: 0 }} />
               </button>
-              <div style={{ borderTop: '1px solid var(--border)', padding: '6px 10px', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ borderTop: '1px solid var(--line)', padding: '6px 10px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button onClick={() => remove(t)} aria-label={'Elimina ' + t.nome}
-                  style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: 6 }}>
+                  style={{ color: 'var(--stop)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, padding: 7 }}>
                   <Trash2 size={14} /> Elimina
                 </button>
               </div>

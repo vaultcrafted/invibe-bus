@@ -21,12 +21,12 @@ export default function Transfer() {
   const [loading, setLoading] = useState(true)
 
   const [selected, setSelected] = useState(new Set())
-  const [sortBy, setSortBy] = useState('codice') // codice | pax
+  const [sortBy, setSortBy] = useState('codice')
   const [filterPickup, setFilterPickup] = useState('')
   const [collapsed, setCollapsed] = useState(new Set())
   const [showDone, setShowDone] = useState(false)
 
-  const [preview, setPreview] = useState(null) // righe importate in anteprima
+  const [preview, setPreview] = useState(null)
   const [addingBus, setAddingBus] = useState(false)
   const [customCap, setCustomCap] = useState('')
   const [busy, setBusy] = useState(false)
@@ -58,7 +58,6 @@ export default function Transfer() {
     return () => { supabase.removeChannel(ch) }
   }, [id])
 
-  // ── derivati ──
   const assByGruppo = useMemo(() => {
     const m = {}
     for (const a of assegnazioni) m[a.gruppo_id] = (m[a.gruppo_id] || 0) + a.pax
@@ -95,7 +94,6 @@ export default function Transfer() {
     return s + (g ? restanti(g) : 0)
   }, 0)
 
-  // ── import ──
   async function onFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -110,7 +108,7 @@ export default function Transfer() {
       const pickup = String(r[1] ?? '').trim()
       const pax = parseInt(r[2], 10)
       if (!codice || !Number.isFinite(pax) || pax <= 0) continue
-      if (/^codice|^cod\.|^prenotaz/i.test(codice)) continue // riga intestazione
+      if (/^codice|^cod\.|^prenotaz/i.test(codice)) continue
       parsed.push({ codice, pickup_point: pickup, pax })
     }
     if (!parsed.length) { notify('Nel file non ho trovato righe valide (A codice, B pickup, C pax).'); return }
@@ -129,7 +127,6 @@ export default function Transfer() {
     load()
   }
 
-  // ── bus ──
   async function addBus(cap) {
     const capienza = parseInt(cap, 10)
     if (!Number.isFinite(capienza) || capienza <= 0) return
@@ -146,7 +143,6 @@ export default function Transfer() {
     load()
   }
 
-  // ── assegnazione ──
   async function assignTo(m) {
     if (!selected.size) return
     const liberi = m.capienza - (usedByMezzo[m.id] || 0)
@@ -165,7 +161,6 @@ export default function Transfer() {
       return
     }
 
-    // non ci stanno tutti
     if (sel.length === 1 && liberi > 0) {
       const g = sel[0]
       if (confirm(`${g.codice} ha ${restanti(g)} pax ma su ${m.nome} restano ${liberi} posti.\nDividere il gruppo: ${liberi} qui e ${restanti(g) - liberi} da assegnare a un altro bus?`)) {
@@ -187,7 +182,6 @@ export default function Transfer() {
     load()
   }
 
-  // ── condivisione ──
   async function toggleShare() {
     const v = !transfer.condiviso
     await supabase.from('bus_transfer').update({ condiviso: v, updated_at: new Date().toISOString() }).eq('id', id)
@@ -201,7 +195,6 @@ export default function Transfer() {
       .catch(() => notify(url))
   }
 
-  // ── export ──
   function exportXlsx() {
     const wb = XLSX.utils.book_new()
     for (const m of mezzi) {
@@ -218,8 +211,7 @@ export default function Transfer() {
     XLSX.writeFile(wb, (transfer?.nome || 'transfer').replace(/[^\w\s-]/g, '') + ' - bus.xlsx')
   }
 
-  // ── UI ──
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>Caricamento…</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', fontSize: 13 }}>caricamento…</div>
   if (!transfer) return <div style={{ padding: 40, textAlign: 'center' }}>Transfer non trovato.</div>
 
   const done = totPax > 0 && totAss >= totPax
@@ -227,46 +219,42 @@ export default function Transfer() {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: selected.size ? 140 : 24 }}>
 
-      {/* header */}
-      <div className="rollsign" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <button onClick={() => navigate('/')} aria-label="Indietro" style={{ color: 'inherit', display: 'flex' }}><ArrowLeft size={16} /></button>
+      <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
+        <button onClick={() => navigate('/')} aria-label="Indietro" style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
         <span className="sub">{totAss}/{totPax}</span>
       </div>
 
-      {/* avanzamento */}
-      <div style={{ padding: '12px 16px 0' }}>
-        <div className={'gauge' + (done ? ' full' : '')}>
+      <div style={{ padding: '14px 16px 0' }}>
+        <div className={'gauge' + (done ? ' full' : '')} style={{ height: 11 }}>
           <div style={{ width: totPax ? Math.min(100, (totAss / totPax) * 100) + '%' : 0 }} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: done ? 'var(--success)' : 'var(--text-secondary)', marginTop: 6 }}>
-          <span>{done ? 'Tutti assegnati' : `${totPax - totAss} pax da assegnare`}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: done ? 'var(--go)' : 'var(--text-secondary)', marginTop: 7, fontFamily: 'var(--mono)' }}>
+          <span>{done ? '✓ tutti assegnati' : `${totPax - totAss} pax da assegnare`}</span>
           <span>{mezzi.length} bus · {mezzi.reduce((s, m) => s + m.capienza, 0)} posti</span>
         </div>
       </div>
 
-      {/* azioni */}
-      <div className="no-print" style={{ display: 'flex', gap: 8, padding: '12px 16px', flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}><Upload size={16} /> Importa</button>
-        <button className="btn btn-ghost" onClick={toggleShare} style={transfer.condiviso ? { background: 'var(--success-light)', color: 'var(--success)' } : {}}>
+      <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', flexWrap: 'wrap' }}>
+        <button className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={16} /> Importa</button>
+        <button className="btn btn-outline" onClick={toggleShare} style={transfer.condiviso ? { background: 'var(--go-bg)', color: 'var(--go)', borderColor: 'transparent' } : {}}>
           <Share2 size={16} /> {transfer.condiviso ? 'Link attivo' : 'Condividi'}
         </button>
-        {transfer.condiviso && <button className="btn btn-ghost" onClick={copyLink}>Copia link</button>}
-        <button className="btn btn-ghost" onClick={exportXlsx} disabled={!mezzi.length}><Download size={16} /> Excel</button>
+        {transfer.condiviso && <button className="btn btn-outline" onClick={copyLink}>Copia link</button>}
+        <button className="btn btn-outline" onClick={exportXlsx} disabled={!mezzi.length}><Download size={16} /> Excel</button>
       </div>
       <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFile} style={{ display: 'none' }} />
 
-      {/* anteprima import */}
       {preview && (
         <div style={{ padding: '0 16px 12px' }}>
-          <div className="card" style={{ padding: 14 }}>
+          <div className="card" style={{ padding: 16 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>Anteprima import · {preview.length} gruppi · {preview.reduce((s, r) => s + r.pax, 0)} pax</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>
               I codici già presenti vengono aggiornati (pickup e pax), gli altri aggiunti. Le assegnazioni fatte restano.
             </div>
-            <div style={{ maxHeight: 180, overflow: 'auto', fontSize: 13, border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', marginBottom: 10 }}>
+            <div style={{ maxHeight: 180, overflow: 'auto', fontSize: 13, border: '1px solid var(--line)', borderRadius: 'var(--r-sm)', marginBottom: 10 }}>
               {preview.slice(0, 60).map((r, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, padding: '5px 10px', borderBottom: '1px solid var(--border)' }}>
+                <div key={i} style={{ display: 'flex', gap: 8, padding: '5px 10px', borderBottom: '1px solid var(--line)', fontFamily: 'var(--mono)' }}>
                   <span style={{ flex: 1, fontWeight: 600 }}>{r.codice}</span>
                   <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{r.pickup_point || '—'}</span>
                   <span>{r.pax} pax</span>
@@ -282,44 +270,50 @@ export default function Transfer() {
         </div>
       )}
 
-      {/* bus */}
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {mezzi.map(m => {
+        {mezzi.map((m, i) => {
           const used = usedByMezzo[m.id] || 0
           const liberi = m.capienza - used
           const list = assegnazioni.filter(a => a.mezzo_id === m.id)
+          const full = liberi === 0
           return (
-            <div key={m.id} className="card">
-              <div className="rollsign">
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bus size={15} /> {m.nome}</span>
-                <span className="sub">{used}/{m.capienza} · liberi {liberi}</span>
+            <div key={m.id} className="stub">
+              <div className="stub-head">
+                <div className="stub-tag" style={{ background: full ? 'var(--go)' : 'var(--ink)' }}>
+                  <span className="lbl" style={{ color: full ? '#fff' : 'var(--signal)' }}>BUS</span>
+                  <span className="num">{String(i + 1).padStart(2, '0')}</span>
+                </div>
+                <div className="stub-head-body">
+                  <span className="name">{m.nome}</span>
+                  <span className="meta">{used}/{m.capienza} POSTI · LIBERI {liberi}</span>
+                </div>
               </div>
-              <div style={{ padding: 12 }}>
-                <div className={'gauge' + (liberi === 0 ? ' full' : liberi < 0 ? ' over' : '')}>
+              <div style={{ padding: 14 }}>
+                <div className={'gauge' + (full ? ' full' : liberi < 0 ? ' over' : '')}>
                   <div style={{ width: Math.min(100, (used / m.capienza) * 100) + '%' }} />
                 </div>
-                {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 10 }}>Vuoto. Seleziona i gruppi sotto e assegnali qui.</div>}
+                {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 12 }}>Vuoto. Seleziona i gruppi sotto e assegnali qui.</div>}
                 {list.map(a => {
                   const g = gruppi.find(x => x.id === a.gruppo_id)
                   if (!g) return null
                   const diviso = a.pax < g.pax
                   return (
-                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
                       <span style={{ flex: 1, fontWeight: 600 }}>{g.codice}</span>
                       <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{g.pickup_point}</span>
-                      <span style={{ fontWeight: 700 }}>{a.pax}{diviso ? `/${g.pax}` : ''}</span>
-                      {diviso && <span style={{ fontSize: 11, color: 'var(--warn)', background: 'var(--warn-light)', padding: '2px 6px', borderRadius: 'var(--r-full)' }}>diviso</span>}
-                      <button className="no-print" onClick={() => unassign(a)} aria-label={'Togli ' + g.codice} style={{ color: 'var(--danger)', display: 'flex', padding: 4 }}><X size={15} /></button>
+                      <span className="tab-num" style={{ fontSize: 14 }}>{a.pax}{diviso ? `/${g.pax}` : ''}</span>
+                      {diviso && <span className="pill pill-warn">diviso</span>}
+                      <button className="no-print" onClick={() => unassign(a)} aria-label={'Togli ' + g.codice} style={{ color: 'var(--stop)', display: 'flex', padding: 4 }}><X size={15} /></button>
                     </div>
                   )
                 })}
                 {selected.size > 0 && (
-                  <button className="btn btn-primary no-print" style={{ width: '100%', marginTop: 10 }} onClick={() => assignTo(m)} disabled={busy}>
+                  <button className="btn btn-primary no-print" style={{ width: '100%', marginTop: 12 }} onClick={() => assignTo(m)} disabled={busy}>
                     Assegna qui ({selPax} pax)
                   </button>
                 )}
                 <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                  <button onClick={() => removeBus(m)} style={{ color: 'var(--danger)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, padding: 4 }}>
+                  <button onClick={() => removeBus(m)} style={{ color: 'var(--stop)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, padding: 4 }}>
                     <Trash2 size={13} /> Elimina bus
                   </button>
                 </div>
@@ -329,10 +323,10 @@ export default function Transfer() {
         })}
 
         {addingBus ? (
-          <div className="card" style={{ padding: 14 }}>
+          <div className="card" style={{ padding: 16 }}>
             <div className="input-label">Taglio del bus (posti)</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {TAGLI.map(c => <button key={c} className="btn btn-ghost" onClick={() => addBus(c)}>{c}</button>)}
+              {TAGLI.map(c => <button key={c} className="btn btn-outline tab-num" onClick={() => addBus(c)}>{c}</button>)}
               <input className="input-field" style={{ width: 90 }} type="number" inputMode="numeric" placeholder="altro"
                 value={customCap} onChange={e => setCustomCap(e.target.value)} onKeyDown={e => e.key === 'Enter' && addBus(customCap)} />
               <button className="btn btn-primary" onClick={() => addBus(customCap)} disabled={!customCap}>Ok</button>
@@ -340,12 +334,11 @@ export default function Transfer() {
             </div>
           </div>
         ) : (
-          <button className="btn btn-ghost no-print" onClick={() => setAddingBus(true)}><Plus size={16} /> Aggiungi bus</button>
+          <button className="btn btn-outline no-print" onClick={() => setAddingBus(true)} style={{ borderStyle: 'dashed' }}><Plus size={16} /> Aggiungi bus</button>
         )}
       </div>
 
-      {/* gruppi per pickup point */}
-      <div style={{ padding: '18px 16px 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ padding: '22px 16px 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontWeight: 800, fontSize: 17, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={17} /> Gruppi</div>
         <select className="input-field" style={{ width: 'auto', padding: '8px 10px', fontSize: 14 }} value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="Ordina per">
           <option value="codice">A–Z codice</option>
@@ -359,17 +352,17 @@ export default function Transfer() {
       {pickups.length > 1 && (
         <div className="no-print" style={{ display: 'flex', gap: 6, padding: '0 16px 10px', overflowX: 'auto' }}>
           <button className="btn" onClick={() => setFilterPickup('')}
-            style={{ padding: '6px 12px', fontSize: 13, borderRadius: 'var(--r-full)', background: !filterPickup ? 'var(--iv-blue)' : 'var(--bg-mute)', color: !filterPickup ? '#fff' : 'var(--ink)', whiteSpace: 'nowrap' }}>Tutti</button>
+            style={{ padding: '6px 12px', fontSize: 13, borderRadius: 'var(--r-full)', background: !filterPickup ? 'var(--ink)' : 'var(--bg-mute)', color: !filterPickup ? 'var(--on-dark)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>Tutti</button>
           {pickups.map(([p]) => (
             <button key={p} className="btn" onClick={() => setFilterPickup(filterPickup === p ? '' : p)}
-              style={{ padding: '6px 12px', fontSize: 13, borderRadius: 'var(--r-full)', background: filterPickup === p ? 'var(--iv-blue)' : 'var(--bg-mute)', color: filterPickup === p ? '#fff' : 'var(--ink)', whiteSpace: 'nowrap' }}>{p}</button>
+              style={{ padding: '6px 12px', fontSize: 13, borderRadius: 'var(--r-full)', background: filterPickup === p ? 'var(--ink)' : 'var(--bg-mute)', color: filterPickup === p ? 'var(--on-dark)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>{p}</button>
           ))}
         </div>
       )}
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {gruppi.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '30px 20px' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '36px 20px' }}>
             Nessun gruppo. Premi <b>Importa</b> e carica il file: colonna A codice prenotazione, B pickup point, C pax.
           </div>
         )}
@@ -382,10 +375,10 @@ export default function Transfer() {
             <div key={p} className="card">
               <button onClick={() => {
                 const c = new Set(collapsed); c.has(p) ? c.delete(p) : c.add(p); setCollapsed(c)
-              }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', background: 'var(--bg-soft)', textAlign: 'left' }}>
+              }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'var(--bg-soft)', textAlign: 'left' }}>
                 <span style={{ fontWeight: 700, flex: 1 }}>{p}</span>
-                <span style={{ fontSize: 13, color: paxRest ? 'var(--text-secondary)' : 'var(--success)' }}>
-                  {paxRest ? `${paxRest} pax da assegnare` : 'completo'}
+                <span className="tab-num" style={{ fontSize: 13, color: paxRest ? 'var(--text-secondary)' : 'var(--go)' }}>
+                  {paxRest ? `${paxRest} pax` : 'completo'}
                 </span>
                 {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
               </button>
@@ -394,16 +387,16 @@ export default function Transfer() {
                 const isSel = selected.has(g.id)
                 return (
                   <label key={g.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
-                    borderTop: '1px solid var(--border)', cursor: r > 0 ? 'pointer' : 'default',
-                    background: isSel ? 'var(--iv-blue-light)' : r === 0 ? 'var(--success-light)' : 'transparent'
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                    borderTop: '1px solid var(--line)', cursor: r > 0 ? 'pointer' : 'default',
+                    background: isSel ? 'var(--iv-blue-light)' : r === 0 ? 'var(--go-bg)' : 'transparent'
                   }}>
                     <input type="checkbox" disabled={r === 0} checked={isSel} style={{ width: 20, height: 20 }}
                       onChange={() => { const s = new Set(selected); s.has(g.id) ? s.delete(g.id) : s.add(g.id); setSelected(s) }} />
                     <span style={{ flex: 1, fontWeight: 600 }}>{g.codice}</span>
                     {r === 0
-                      ? <span style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600 }}>✓ {g.pax} pax</span>
-                      : <span style={{ fontSize: 14 }}>{r < g.pax ? `${r}/${g.pax}` : g.pax} pax</span>}
+                      ? <span style={{ fontSize: 13, color: 'var(--go)', fontWeight: 700 }}>✓ {g.pax} pax</span>
+                      : <span className="tab-num" style={{ fontSize: 14 }}>{r < g.pax ? `${r}/${g.pax}` : g.pax} pax</span>}
                   </label>
                 )
               })}
@@ -412,17 +405,17 @@ export default function Transfer() {
         })}
       </div>
 
-      {/* barra selezione */}
       {selected.size > 0 && (
         <div className="no-print" style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30,
-          background: 'var(--sign-bg)', color: '#fff', padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',
+          background: 'var(--ink)', color: 'var(--on-dark)', padding: '13px 16px calc(13px + env(safe-area-inset-bottom))',
+          borderTop: '2px solid var(--signal)',
         }}>
           <div style={{ maxWidth: 608, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ flex: 1, fontSize: 14 }}>
-              <b style={{ color: 'var(--sign-amber)' }}>{selected.size} gruppi · {selPax} pax</b> — tocca "Assegna qui" su un bus
+              <b className="tab-num" style={{ color: 'var(--signal)' }}>{selected.size} gruppi · {selPax} pax</b> — tocca "Assegna qui" su un bus
             </span>
-            <button className="btn btn-ghost" style={{ padding: '8px 14px' }} onClick={() => setSelected(new Set())}>Svuota</button>
+            <button className="btn btn-ghost" style={{ padding: '9px 14px', background: 'rgba(255,255,255,.1)', color: 'var(--on-dark)' }} onClick={() => setSelected(new Set())}>Svuota</button>
           </div>
         </div>
       )}
@@ -430,8 +423,8 @@ export default function Transfer() {
       {toast && (
         <div role="status" style={{
           position: 'fixed', bottom: selected.size ? 96 : 20, left: '50%', transform: 'translateX(-50%)',
-          background: 'var(--ink)', color: '#fff', padding: '10px 16px', borderRadius: 'var(--r-md)',
-          fontSize: 14, zIndex: 40, maxWidth: '90vw', textAlign: 'center'
+          background: 'var(--ink)', color: 'var(--on-dark)', padding: '11px 16px', borderRadius: 'var(--r-md)',
+          fontSize: 14, zIndex: 40, maxWidth: '90vw', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,.25)'
         }}>{toast}</div>
       )}
     </div>

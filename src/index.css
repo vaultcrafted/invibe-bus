@@ -1,93 +1,143 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 :root {
+  /* board */
+  --ink: #0B0D10;
+  --ink-soft: #171A1F;
+  --paper: #FBFAF6;
+  --bg: #FFFFFF;
+  --bg-soft: #F7F6F2;
+  --bg-mute: #EFEDE6;
+  --line: #E3E0D6;
+  --line-strong: #CFCBBC;
+
+  /* testo */
+  --text-primary: #14161A;
+  --text-secondary: #6B6E63;
+  --text-tertiary: #9B9C8F;
+  --on-dark: #F4F2EA;
+  --on-dark-dim: rgba(244,242,234,.5);
+
+  /* colori di segnale, come i cartelli dei bus */
+  --signal: #FFB300;
+  --signal-dim: #8A6200;
   --iv-blue: #1E6BF1;
   --iv-blue-dark: #1450C8;
-  --iv-blue-light: #EBF1FE;
-  --ink: #0f0f0f;
-  --text-secondary: #6b7280;
-  --text-tertiary: #9ca3af;
-  --bg: #ffffff;
-  --bg-soft: #f9fafb;
-  --bg-mute: #f3f4f6;
-  --border: #e5e7eb;
-  --border-mid: #d1d5db;
-  --success: #059669;
-  --success-light: #ecfdf5;
-  --danger: #dc2626;
-  --danger-light: #fef2f2;
-  --warn: #b45309;
-  --warn-light: #fffbeb;
-  --sign-bg: #10151D;       /* roll sign: striscia scura dei bus */
-  --sign-amber: #FFB000;    /* roll sign: ambra dei cartelli destinazione */
+  --iv-blue-light: #EAF1FE;
+  --go: #1E8E5A;
+  --go-bg: #E9F7EF;
+  --stop: #D5442C;
+  --stop-bg: #FDEEEA;
+  --warn: #B5750B;
+  --warn-bg: #FDF3DF;
+
   --r-sm: 8px;
   --r-md: 12px;
-  --r-lg: 16px;
+  --r-lg: 18px;
   --r-full: 999px;
+
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
 
 html, body, #root {
-  height: 100vh;
-  height: 100dvh;
-  overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  font-size: 16px;
-  color: var(--ink);
-  background: var(--bg);
+  height: 100vh; height: 100dvh; overflow-x: hidden;
+  font-family: var(--sans); font-size: 16px;
+  color: var(--text-primary); background: var(--bg-soft);
   -webkit-font-smoothing: antialiased;
 }
-
 #root { display: flex; flex-direction: column; }
 
-button { font-family: inherit; cursor: pointer; border: none; background: none; font-size: 15px; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; font-size: 15px; color: inherit; }
 input, select { font-family: inherit; font-size: 16px; }
+a { color: inherit; }
+
+/* ── numeri: tabellone split-flap ── */
+.tab-num {
+  font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700;
+  letter-spacing: -.01em;
+}
 
 .input-field {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--border-mid);
-  border-radius: var(--r-md);
-  background: var(--bg);
-  outline: none;
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--bg); outline: none; color: var(--text-primary);
 }
 .input-field:focus { border-color: var(--iv-blue); }
-.input-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.input-label { display: block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 7px; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px 18px; border-radius: var(--r-md); font-weight: 600;
-  transition: opacity .12s;
+  padding: 13px 18px; border-radius: var(--r-md); font-weight: 700;
+  transition: transform .08s, opacity .12s, background .12s;
 }
-.btn:active { opacity: .75; }
-.btn:disabled { opacity: .45; cursor: default; }
-.btn-primary { background: var(--iv-blue); color: #fff; }
-.btn-ghost { background: var(--bg-mute); color: var(--ink); }
-.btn-danger { background: var(--danger-light); color: var(--danger); }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .4; cursor: default; transform: none; }
+.btn-primary { background: var(--ink); color: var(--on-dark); }
+.btn-primary:hover { background: var(--ink-soft); }
+.btn-signal { background: var(--signal); color: #241900; }
+.btn-ghost { background: var(--bg-mute); color: var(--text-primary); }
+.btn-danger { background: var(--stop-bg); color: var(--stop); }
+.btn-outline { background: transparent; border: 1.5px solid var(--line-strong); color: var(--text-primary); }
 
 .card {
-  background: var(--bg); border: 1px solid var(--border);
+  background: var(--bg); border: 1px solid var(--line);
   border-radius: var(--r-lg); overflow: hidden;
 }
 
-/* ── Firma: roll sign ── */
-.rollsign {
-  background: var(--sign-bg);
-  color: var(--sign-amber);
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .14em;
-  padding: 10px 14px;
+/* ── tabellone: intestazione stile display aeroportuale ── */
+.board-strip {
+  background: var(--ink); color: var(--on-dark);
+  font-family: var(--mono); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .12em;
+  padding: 11px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  font-size: 14px;
+  font-size: 13px;
+  border-bottom: 2px solid var(--signal);
 }
-.rollsign .sub { color: rgba(255,176,0,.55); font-size: 11px; letter-spacing: .1em; }
+.board-strip .sub { color: var(--on-dark-dim); font-size: 10.5px; letter-spacing: .08em; font-weight: 600; }
+.board-strip .flag { color: var(--signal); }
 
-/* Barra capienza */
-.gauge { height: 8px; background: var(--bg-mute); border-radius: var(--r-full); overflow: hidden; }
-.gauge > div { height: 100%; background: var(--iv-blue); border-radius: var(--r-full); transition: width .25s; }
-.gauge.full > div { background: var(--success); }
-.gauge.over > div { background: var(--danger); }
+/* ── talloncino biglietto: card dei bus ── */
+.stub {
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-lg);
+  overflow: hidden; position: relative;
+}
+.stub-head {
+  display: flex; align-items: stretch;
+  background: var(--ink); color: var(--on-dark);
+}
+.stub-tag {
+  flex-shrink: 0; width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 12px 6px; border-right: 2px dashed rgba(244,242,234,.25);
+  position: relative;
+}
+.stub-tag .lbl { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; color: var(--signal); font-weight: 700; }
+.stub-tag .num { font-family: var(--mono); font-size: 26px; font-weight: 800; line-height: 1; margin-top: 3px; }
+.stub-head-body { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
+.stub-head-body .name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stub-head-body .meta { font-family: var(--mono); font-size: 12px; color: var(--on-dark-dim); }
+
+/* notches ai lati della perforazione, effetto biglietto strappato */
+.stub-tag::after {
+  content: ''; position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+  width: 14px; height: 14px; border-radius: 50%; background: var(--bg-soft);
+  box-shadow: 0 0 0 1px var(--line) inset;
+}
+
+/* ── barra capienza: gauge stile serbatoio ── */
+.gauge { height: 9px; background: var(--bg-mute); border-radius: var(--r-full); overflow: hidden; position: relative; }
+.gauge > div { height: 100%; background: var(--iv-blue); border-radius: var(--r-full); transition: width .3s cubic-bezier(.4,0,.2,1); }
+.gauge.full > div { background: var(--go); }
+.gauge.over > div { background: var(--stop); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700;
+  padding: 4px 10px; border-radius: var(--r-full); font-family: var(--mono); letter-spacing: .02em;
+}
+.pill-go { background: var(--go-bg); color: var(--go); }
+.pill-warn { background: var(--warn-bg); color: var(--warn); }
+.pill-signal { background: rgba(255,179,0,.15); color: var(--signal-dim); }
 
 /* focus visibile da tastiera */
 :focus-visible { outline: 2px solid var(--iv-blue); outline-offset: 2px; }
@@ -98,5 +148,7 @@ input, select { font-family: inherit; font-size: 16px; }
 
 @media print {
   .no-print { display: none !important; }
-  .card { break-inside: avoid; border-color: #999; }
+  body, html, #root { background: #fff; }
+  .card, .stub { break-inside: avoid; border-color: #999; }
+  .board-strip, .stub-head { background: #111 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
