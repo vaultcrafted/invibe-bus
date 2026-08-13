@@ -421,8 +421,8 @@ export default function Transfer() {
               <div className="stub-head">
                 <button onClick={() => { const c = new Set(collapsedBuses); c.has(m.id) ? c.delete(m.id) : c.add(m.id); setCollapsedBuses(c) }}
                   style={{ display: 'flex', alignItems: 'stretch', width: '100%', textAlign: 'left' }}>
-                  <div className={'stub-tag' + (full ? ' stub-tag--full' : liberi < 0 ? ' stub-tag--over' : ' stub-tag--colored')}
-                    style={!full && liberi >= 0 ? busColorStyle(i) : undefined}>
+                  <div className={'stub-tag stub-tag--colored' + (full ? ' stub-tag--done' : liberi < 0 ? ' stub-tag--danger' : '')}
+                    style={busColorStyle(i)}>
                     <span className="lbl">{full ? t.pieno : t.liberi}</span>
                     <span className="num"><CountNum value={liberi} /></span>
                   </div>

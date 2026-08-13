@@ -130,8 +130,8 @@ export default function Share() {
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
-                <div className={'stub-tag' + (full ? ' stub-tag--full' : ' stub-tag--colored')}
-                  style={!full ? busColorStyle(i) : undefined}>
+                <div className={'stub-tag stub-tag--colored' + (full ? ' stub-tag--done' : '')}
+                  style={busColorStyle(i)}>
                   <span className="lbl">{full ? t.pieno : t.liberi}</span>
                   <span className="num"><CountNum value={liberi} /></span>
                 </div>

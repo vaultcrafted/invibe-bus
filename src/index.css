@@ -149,6 +149,8 @@ a { color: inherit; }
 .stub-tag--warn .lbl, .stub-tag--warn .num { color: #241900; }
 .stub-tag--neutral .lbl { color: rgba(255,255,255,.75); }
 .stub-tag--colored .lbl { color: rgba(255,255,255,.85); }
+.stub-tag--done { box-shadow: inset 0 0 0 3px rgba(35,168,112,.9); }
+.stub-tag--danger { box-shadow: inset 0 0 0 3px rgba(224,85,58,.95); }
 .stub-tag .num { font-family: var(--mono); font-size: 26px; font-weight: 800; line-height: 1; margin-top: 3px; }
 .stub-head-body { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
 .stub-head-body .name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
