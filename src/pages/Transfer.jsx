@@ -323,6 +323,10 @@ export default function Transfer() {
   const liberiFlotta = totCapienza - totUsedFlotta
   const pctFlotta = totCapienza ? Math.min(100, (totUsedFlotta / totCapienza) * 100) : 0
   const flottaPiena = totCapienza > 0 && liberiFlotta <= 0
+  const anyGroupVisible = pickups.some(([p, gs]) => {
+    if (filterPickup && p !== filterPickup) return false
+    return gs.some(g => showDone || restanti(g) > 0)
+  })
 
   return (
     <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: selected.size ? 140 : 24 }}>
@@ -401,7 +405,24 @@ export default function Transfer() {
         </div>
       )}
 
-      <div className="transfer-layout split">
+      <div style={{ padding: '22px 16px 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ fontWeight: 800, fontSize: 17, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={17} /> {t.groupsTitle}</div>
+        <select className="input-field" style={{ width: 'auto', padding: '8px 10px', fontSize: 14 }} value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="sort">
+          <option value="codice">{t.sortAZ}</option>
+          <option value="pax">{t.sortPax}</option>
+        </select>
+        <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} /> {t.showAssigned}
+        </label>
+      </div>
+
+      {gruppi.length === 0 && (
+        <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '16px 20px 8px' }}>
+          {t.emptyGroupsMsg}
+        </div>
+      )}
+
+      <div className={'transfer-layout' + (anyGroupVisible ? ' split' : '')}>
       <div className="bus-col" style={{ minWidth: 0 }}>
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {mezzi.map((m, i) => {
@@ -525,17 +546,8 @@ export default function Transfer() {
       </div>
       </div>
 
+      {anyGroupVisible && (
       <div className="groups-col" style={{ minWidth: 0 }}>
-      <div style={{ padding: '22px 16px 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ fontWeight: 800, fontSize: 17, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={17} /> {t.groupsTitle}</div>
-        <select className="input-field" style={{ width: 'auto', padding: '8px 10px', fontSize: 14 }} value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="sort">
-          <option value="codice">{t.sortAZ}</option>
-          <option value="pax">{t.sortPax}</option>
-        </select>
-        <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} /> {t.showAssigned}
-        </label>
-      </div>
 
       {pickups.length > 1 && (
         <div className="no-print" style={{ display: 'flex', gap: 6, padding: '0 16px 10px', overflowX: 'auto' }}>
@@ -549,11 +561,6 @@ export default function Transfer() {
       )}
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {gruppi.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '36px 20px' }}>
-            {t.emptyGroupsMsg}
-          </div>
-        )}
         {pickups.filter(([p]) => !filterPickup || p === filterPickup).map(([p, gs], idx) => {
           const visibili = gs.filter(g => showDone || restanti(g) > 0)
           const paxRest = gs.reduce((s, g) => s + restanti(g), 0)
@@ -601,6 +608,7 @@ export default function Transfer() {
         })}
       </div>
       </div>
+      )}
       </div>
 
       {selected.size > 0 && (
