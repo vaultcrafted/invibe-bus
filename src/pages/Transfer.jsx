@@ -192,19 +192,6 @@ export default function Transfer() {
       return
     }
 
-    if (sel.length === 1 && liberi > 0) {
-      const g = sel[0]
-      if (confirm(t.tSplitConfirm(g.codice, restanti(g), m.nome, liberi))) {
-        setBusy(true)
-        const { error } = await supabase.from('bus_assegnazioni').insert({ transfer_id: id, gruppo_id: g.id, mezzo_id: m.id, pax: liberi })
-        setBusy(false)
-        if (error) { notify(t.tError(error.message)); return }
-        setSelected(new Set([g.id]))
-        notify(t.tSplitOk(g.codice, liberi, m.nome, restanti(g) - liberi))
-        load()
-      }
-      return
-    }
     notify(t.tNoRoom(tot, liberi, m.nome))
   }
 
@@ -223,7 +210,7 @@ export default function Transfer() {
     let nonPiazzati = 0
 
     for (const g of daAssegnare) {
-      let rimasto = g.rest
+      const rimasto = g.rest
       const interi = busiOrdinati.filter(m => liberiMap[m.id] >= rimasto && !existingPairs.has(g.id + '|' + m.id))
       if (interi.length) {
         interi.sort((a, b) => liberiMap[a.id] - liberiMap[b.id])
@@ -233,18 +220,7 @@ export default function Transfer() {
         existingPairs.add(g.id + '|' + m.id)
         continue
       }
-      const parziali = busiOrdinati.filter(m => liberiMap[m.id] > 0 && !existingPairs.has(g.id + '|' + m.id))
-        .sort((a, b) => liberiMap[b.id] - liberiMap[a.id])
-      for (const m of parziali) {
-        if (rimasto <= 0) break
-        const preso = Math.min(liberiMap[m.id], rimasto)
-        if (preso <= 0) continue
-        planned.push({ transfer_id: id, gruppo_id: g.id, mezzo_id: m.id, pax: preso })
-        liberiMap[m.id] -= preso
-        existingPairs.add(g.id + '|' + m.id)
-        rimasto -= preso
-      }
-      if (rimasto > 0) nonPiazzati += rimasto
+      nonPiazzati += rimasto
     }
 
     if (!planned.length) { notify(nonPiazzati > 0 ? t.tAutoNoRoom(nonPiazzati) : t.tAutoNothing); return }
