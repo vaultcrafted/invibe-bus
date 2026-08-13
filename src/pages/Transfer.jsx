@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import * as XLSX from 'xlsx'
 import {
   ArrowLeft, Upload, Plus, Bus, Trash2, Share2, Download,
-  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin
+  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin, ClipboardList
 } from 'lucide-react'
 import { Gauge, CountNum, LiveDot, busColorStyle } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
@@ -32,6 +32,7 @@ export default function Transfer() {
   const [showDone, setShowDone] = useState(false)
 
   const [preview, setPreview] = useState(null)
+  const [showRosterPicker, setShowRosterPicker] = useState(false)
   const [addingBus, setAddingBus] = useState(false)
   const [customCap, setCustomCap] = useState('')
   const [addingStaffFor, setAddingStaffFor] = useState(null)
@@ -136,6 +137,23 @@ export default function Transfer() {
     if (error) { notify(t.tImportError(error.message)); return }
     setPreview(null)
     notify(t.tImportOk(rows.length))
+    load()
+  }
+
+  async function importFromRoster(onlyPacchetto) {
+    setShowRosterPicker(false)
+    const { data: roster } = await supabase.from('bus_roster').select('*')
+    if (!roster || !roster.length) { notify(t.rosterImportNone); return }
+    const subset = onlyPacchetto ? roster.filter(r => r.escursioni) : roster
+    if (!subset.length) { notify(t.rosterImportNone); return }
+    setBusy(true)
+    const rows = subset.map(r => ({
+      transfer_id: id, codice: r.codice, pickup_point: r.pickup_point, pax: r.pax, alloggio: r.alloggio,
+    }))
+    const { error } = await supabase.from('bus_gruppi').upsert(rows, { onConflict: 'transfer_id,codice' })
+    setBusy(false)
+    if (error) { notify(t.tError(error.message)); return }
+    notify(t.tRosterImportOk(rows.length))
     load()
   }
 
@@ -346,6 +364,7 @@ export default function Transfer() {
 
       <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', flexWrap: 'wrap' }}>
         <button className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={16} /> {t.importBtn}</button>
+        <button className="btn btn-outline" onClick={() => setShowRosterPicker(v => !v)}><ClipboardList size={16} /> {t.rosterImportFromRoster}</button>
         <button className="btn btn-outline" onClick={autoFill} disabled={busy || !mezzi.length || totPax - totAss <= 0}>
           <Wand2 size={16} /> {t.autoFillBtn}
         </button>
@@ -356,6 +375,19 @@ export default function Transfer() {
         <button className="btn btn-outline" onClick={exportXlsx} disabled={!mezzi.length}><Download size={16} /> {t.excelBtn}</button>
       </div>
       <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFile} style={{ display: 'none' }} />
+
+      {showRosterPicker && (
+        <div style={{ padding: '0 16px 12px' }}>
+          <div className="card" style={{ padding: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>{t.rosterImportPickTitle}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" onClick={() => importFromRoster(false)} disabled={busy}>{t.rosterImportAll}</button>
+              <button className="btn btn-outline" onClick={() => importFromRoster(true)} disabled={busy}>{t.rosterImportPackage}</button>
+              <button className="btn btn-ghost" onClick={() => setShowRosterPicker(false)}>{t.cancelBtn}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {preview && (
         <div style={{ padding: '0 16px 12px' }}>

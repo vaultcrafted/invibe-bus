@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Plus, Bus, ChevronRight, Trash2, Users, Share2, UserPlus, Activity } from 'lucide-react'
+import { Plus, Bus, ChevronRight, Trash2, Users, Share2, UserPlus, Activity, ClipboardList } from 'lucide-react'
 import { Gauge, CountNum, LiveDot, StatCard, FleetDonut } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
 
@@ -131,6 +131,9 @@ export default function Home() {
         </span>
         <span className="sub">
           <LiveDot /> {t.manifestCount(transfers.length)}
+          <button className="lang-toggle no-print" onClick={() => navigate('/roster')} aria-label={t.rosterTitle} style={{ marginLeft: 2 }}>
+            <ClipboardList size={12} style={{ verticalAlign: -2 }} /> {t.rosterBackHome}
+          </button>
           <button className="lang-toggle no-print" onClick={toggleLang} aria-label="Cambia lingua / Change language">
             {lang === 'it' ? 'EN' : 'IT'}
           </button>
