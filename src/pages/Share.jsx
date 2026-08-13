@@ -1,0 +1,153 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { Bus, Printer, RefreshCw } from 'lucide-react'
+
+// Vista per l'agenzia bus: sola lettura, senza login.
+// Funziona solo se il transfer ha il link attivo (condiviso = true, verificato dalle policy RLS).
+export default function Share() {
+  const { id } = useParams()
+  const [transfer, setTransfer] = useState(undefined) // undefined = caricamento, null = non disponibile
+  const [gruppi, setGruppi] = useState([])
+  const [mezzi, setMezzi] = useState([])
+  const [assegnazioni, setAssegnazioni] = useState([])
+  const [updatedAt, setUpdatedAt] = useState(null)
+
+  async function load() {
+    const [t, g, m, a] = await Promise.all([
+      supabase.from('bus_transfer').select('*').eq('id', id).maybeSingle(),
+      supabase.from('bus_gruppi').select('*').eq('transfer_id', id),
+      supabase.from('bus_mezzi').select('*').eq('transfer_id', id).order('ordine'),
+      supabase.from('bus_assegnazioni').select('*').eq('transfer_id', id),
+    ])
+    setTransfer(t.data ?? null)
+    setGruppi(g.data || [])
+    setMezzi(m.data || [])
+    setAssegnazioni(a.data || [])
+    setUpdatedAt(new Date())
+  }
+
+  useEffect(() => {
+    load()
+    const ch = supabase.channel('share-' + id)
+    for (const table of ['bus_gruppi', 'bus_mezzi', 'bus_assegnazioni']) {
+      ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `transfer_id=eq.${id}` }, () => load())
+    }
+    ch.subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [id])
+
+  const gruppoById = useMemo(() => {
+    const m = {}
+    for (const g of gruppi) m[g.id] = g
+    return m
+  }, [gruppi])
+
+  const nonAssegnati = useMemo(() => {
+    const ass = {}
+    for (const a of assegnazioni) ass[a.gruppo_id] = (ass[a.gruppo_id] || 0) + a.pax
+    return gruppi
+      .map(g => ({ ...g, restanti: g.pax - (ass[g.id] || 0) }))
+      .filter(g => g.restanti > 0)
+      .sort((a, b) => a.codice.localeCompare(b.codice, 'it'))
+  }, [gruppi, assegnazioni])
+
+  if (transfer === undefined) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>Caricamento…</div>
+  }
+
+  if (transfer === null) {
+    return (
+      <div style={{ padding: '60px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
+        <div className="rollsign" style={{ borderRadius: 'var(--r-md)', justifyContent: 'center', marginBottom: 18 }}>INVIBE BUS</div>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Questo link non è attivo</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
+          La condivisione di questa lista è stata disattivata. Chiedi a chi te l'ha mandata di riattivarla.
+        </div>
+      </div>
+    )
+  }
+
+  const totPax = gruppi.reduce((s, g) => s + g.pax, 0)
+  const totAss = assegnazioni.reduce((s, a) => s + a.pax, 0)
+
+  return (
+    <div style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: 32 }}>
+
+      <div className="rollsign" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
+        <span>INVIBE BUS</span>
+        <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
+        <span className="sub">{totAss}/{totPax} PAX</span>
+      </div>
+
+      <div className="no-print" style={{ display: 'flex', gap: 8, padding: '12px 16px', alignItems: 'center' }}>
+        <button className="btn btn-ghost" onClick={() => window.print()}><Printer size={16} /> Stampa</button>
+        <button className="btn btn-ghost" onClick={load}><RefreshCw size={16} /> Aggiorna</button>
+        {updatedAt && (
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)' }}>
+            agg. {updatedAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+      </div>
+
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {mezzi.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '30px 20px' }}>
+            Nessun bus ancora inserito per questo transfer.
+          </div>
+        )}
+
+        {mezzi.map(m => {
+          const list = assegnazioni
+            .filter(a => a.mezzo_id === m.id)
+            .map(a => ({ ...a, g: gruppoById[a.gruppo_id] }))
+            .filter(a => a.g)
+            .sort((a, b) =>
+              (a.g.pickup_point || '').localeCompare(b.g.pickup_point || '', 'it') ||
+              a.g.codice.localeCompare(b.g.codice, 'it'))
+          const used = list.reduce((s, a) => s + a.pax, 0)
+          return (
+            <div key={m.id} className="card">
+              <div className="rollsign">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bus size={15} /> {m.nome}</span>
+                <span className="sub">{used}/{m.capienza} POSTI</span>
+              </div>
+              <div style={{ padding: '4px 14px 12px' }}>
+                {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>Vuoto.</div>}
+                {list.map(a => (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
+                    <span style={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.g.codice}</span>
+                    <span style={{ flex: 1, color: 'var(--text-secondary)', fontSize: 13, textAlign: 'right' }}>{a.g.pickup_point}</span>
+                    <span style={{ fontWeight: 700, minWidth: 34, textAlign: 'right' }}>{a.pax}{a.pax < a.g.pax ? `/${a.g.pax}` : ''}</span>
+                  </div>
+                ))}
+                {list.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, fontWeight: 700, fontSize: 14 }}>
+                    <span>Totale</span><span>{used} pax</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+
+        {nonAssegnati.length > 0 && (
+          <div className="card">
+            <div style={{ padding: '11px 14px', background: 'var(--warn-light)', color: 'var(--warn)', fontWeight: 700, fontSize: 14 }}>
+              Ancora da assegnare · {nonAssegnati.reduce((s, g) => s + g.restanti, 0)} pax
+            </div>
+            <div style={{ padding: '4px 14px 12px' }}>
+              {nonAssegnati.map(g => (
+                <div key={g.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
+                  <span style={{ fontWeight: 600 }}>{g.codice}</span>
+                  <span style={{ flex: 1, color: 'var(--text-secondary)', fontSize: 13, textAlign: 'right' }}>{g.pickup_point}</span>
+                  <span style={{ fontWeight: 700, minWidth: 34, textAlign: 'right' }}>{g.restanti}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
