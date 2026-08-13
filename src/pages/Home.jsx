@@ -196,7 +196,7 @@ export default function Home() {
           <div style={{ fontWeight: 800, fontSize: 15, marginTop: 6 }}>{t.transfersSection}</div>
         )}
 
-        <div className="cards-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {transfers.map((t2, i) => {
           const s = stats[t2.id] || { tot: 0, ass: 0 }
           const pct = s.tot ? Math.min(100, (s.ass / s.tot) * 100) : 0
