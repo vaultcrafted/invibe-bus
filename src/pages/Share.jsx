@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Bus, Printer, RefreshCw, MapPin } from 'lucide-react'
-import { Gauge, CountNum, LiveDot } from '../components/Widgets'
+import { Gauge, CountNum, LiveDot, busColorStyle } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
 
 export default function Share() {
@@ -130,7 +130,8 @@ export default function Share() {
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
-                <div className={'stub-tag' + (full ? ' stub-tag--full' : '')}>
+                <div className={'stub-tag' + (full ? ' stub-tag--full' : ' stub-tag--colored')}
+                  style={!full ? busColorStyle(i) : undefined}>
                   <span className="lbl">{full ? t.pieno : t.liberi}</span>
                   <span className="num"><CountNum value={liberi} /></span>
                 </div>

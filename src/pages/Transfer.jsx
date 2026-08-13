@@ -6,7 +6,7 @@ import {
   ArrowLeft, Upload, Plus, Bus, Trash2, Share2, Download,
   ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin
 } from 'lucide-react'
-import { Gauge, CountNum, LiveDot } from '../components/Widgets'
+import { Gauge, CountNum, LiveDot, busColorStyle } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
 
 const TAGLI = [50, 53, 54, 63]
@@ -421,7 +421,8 @@ export default function Transfer() {
               <div className="stub-head">
                 <button onClick={() => { const c = new Set(collapsedBuses); c.has(m.id) ? c.delete(m.id) : c.add(m.id); setCollapsedBuses(c) }}
                   style={{ display: 'flex', alignItems: 'stretch', width: '100%', textAlign: 'left' }}>
-                  <div className={'stub-tag' + (full ? ' stub-tag--full' : liberi < 0 ? ' stub-tag--over' : '')}>
+                  <div className={'stub-tag' + (full ? ' stub-tag--full' : liberi < 0 ? ' stub-tag--over' : ' stub-tag--colored')}
+                    style={!full && liberi >= 0 ? busColorStyle(i) : undefined}>
                     <span className="lbl">{full ? t.pieno : t.liberi}</span>
                     <span className="num"><CountNum value={liberi} /></span>
                   </div>

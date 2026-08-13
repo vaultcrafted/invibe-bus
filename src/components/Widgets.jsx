@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useCountUp } from '../lib/useCountUp'
 
+// Palette identità bus: un colore diverso per ognuno, a rotazione.
+// Verde (pieno) e rosso (oltre capienza) restano segnali di stato e hanno sempre la priorità.
+export const BUS_COLORS = [
+  ['#4C8DF9', '#1450C8'], // blu
+  ['#A78BFA', '#6D28D9'], // viola
+  ['#2DD4BF', '#0F766E'], // verde acqua
+  ['#FB923C', '#C2410C'], // arancio
+  ['#F472B6', '#BE185D'], // rosa
+  ['#818CF8', '#4338CA'], // indaco
+]
+export function busColorStyle(i) {
+  const [from, to] = BUS_COLORS[i % BUS_COLORS.length]
+  return { backgroundImage: `linear-gradient(165deg, ${from} 0%, ${to} 100%)` }
+}
+
 // Numero animato: scorre verso il nuovo valore invece di scattare.
 export function CountNum({ value, className = '' }) {
   const display = useCountUp(value)
