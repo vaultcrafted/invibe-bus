@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Plus, Bus, ChevronRight, Trash2 } from 'lucide-react'
+import { Gauge, CountNum, LiveDot } from '../components/Widgets'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -12,7 +13,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   async function load() {
-    setLoading(true)
     const { data } = await supabase.from('bus_transfer').select('*').order('created_at', { ascending: false })
     setTransfers(data || [])
     const ids = (data || []).map(t => t.id)
@@ -30,7 +30,15 @@ export default function Home() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const ch = supabase.channel('home-bus')
+    for (const table of ['bus_transfer', 'bus_gruppi', 'bus_assegnazioni']) {
+      ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => load())
+    }
+    ch.subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [])
 
   async function create() {
     const n = nome.trim()
@@ -51,12 +59,12 @@ export default function Home() {
         <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <Bus size={16} className="flag" /> Invibe Bus
         </span>
-        <span className="sub">{transfers.length} manifest{transfers.length === 1 ? 'o' : 'i'}</span>
+        <span className="sub"><LiveDot /> {transfers.length} manifest{transfers.length === 1 ? 'o' : 'i'}</span>
       </div>
 
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {creating ? (
-          <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="card enter" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <label className="input-label" htmlFor="nn">Nome del transfer</label>
             <input id="nn" className="input-field" placeholder="es. C4 arrivo · sab 20 giu" value={nome}
               onChange={e => setNome(e.target.value)} autoFocus onKeyDown={e => e.key === 'Enter' && create()} />
@@ -71,39 +79,39 @@ export default function Home() {
           </button>
         )}
 
-        {loading && <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 24, fontFamily: 'var(--mono)', fontSize: 13 }}>caricamento…</div>}
+        {loading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[0, 1, 2].map(i => <div key={i} className="skeleton" style={{ animationDelay: (i * 90) + 'ms' }} />)}
+          </div>
+        )}
 
         {!loading && transfers.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '52px 24px' }}>
+          <div className="enter" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '52px 24px' }}>
             <div style={{ fontSize: 34, marginBottom: 10 }}>🚌</div>
             <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--text-primary)' }}>Il tabellone è vuoto</div>
             <div style={{ fontSize: 14 }}>Crea un transfer e carica l'Excel dei gruppi per iniziare.</div>
           </div>
         )}
 
-        {transfers.map(t => {
+        {transfers.map((t, i) => {
           const s = stats[t.id] || { tot: 0, ass: 0 }
           const done = s.tot > 0 && s.ass >= s.tot
           const pct = s.tot ? Math.min(100, (s.ass / s.tot) * 100) : 0
           return (
-            <div key={t.id} className="stub">
+            <div key={t.id} className="stub enter" style={{ '--d': (i * 45) + 'ms' }}>
               <button onClick={() => navigate('/t/' + t.id)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 4, textAlign: 'left' }}>
-                <div className="stub-tag" style={{ background: done ? 'var(--go)' : 'var(--ink)' }}>
-                  <span className="lbl" style={{ color: done ? '#fff' : 'var(--signal)' }}>{done ? 'FULL' : 'BUS'}</span>
-                  <span className="num tab-num">{s.tot ? Math.round(pct) + '%' : '—'}</span>
+                <div className={'stub-tag' + (done ? ' stub-tag--full' : '')}>
+                  <span className="lbl">{done ? 'FULL' : 'BUS'}</span>
+                  <span className="num tab-num"><CountNum value={s.tot ? Math.round(pct) : 0} />{s.tot ? '%' : ''}{!s.tot && '—'}</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0, padding: '14px 14px 14px 18px' }}>
                   <div style={{ fontWeight: 700, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--mono)' }}>
-                    {s.tot === 0 ? 'da importare' : `${s.ass}/${s.tot} pax`}
+                    {s.tot === 0 ? 'da importare' : <><CountNum value={s.ass} />/{s.tot} pax</>}
                     {t.condiviso ? ' · link attivo' : ''}
                   </div>
-                  {s.tot > 0 && (
-                    <div className={'gauge' + (done ? ' full' : '')} style={{ marginTop: 8 }}>
-                      <div style={{ width: pct + '%' }} />
-                    </div>
-                  )}
+                  {s.tot > 0 && <Gauge pct={pct} tone={done ? 'full' : ''} style={{ marginTop: 8 }} />}
                 </div>
                 <ChevronRight size={18} color="var(--text-tertiary)" style={{ marginRight: 14, flexShrink: 0 }} />
               </button>

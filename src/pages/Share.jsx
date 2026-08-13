@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Bus, Printer, RefreshCw } from 'lucide-react'
+import { Gauge, CountNum, LiveDot } from '../components/Widgets'
 
 export default function Share() {
   const { id } = useParams()
@@ -77,7 +78,7 @@ export default function Share() {
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
         <span>Invibe Bus</span>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
-        <span className="sub">{totAss}/{totPax} PAX</span>
+        <span className="sub"><LiveDot /> <CountNum value={totAss} />/{totPax} PAX</span>
       </div>
 
       <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', alignItems: 'center' }}>
@@ -108,18 +109,19 @@ export default function Share() {
           const used = list.reduce((s, a) => s + a.pax, 0)
           const full = used >= m.capienza
           return (
-            <div key={m.id} className="stub">
+            <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
-                <div className="stub-tag" style={{ background: full ? 'var(--go)' : 'var(--ink)' }}>
-                  <span className="lbl" style={{ color: full ? '#fff' : 'var(--signal)' }}>BUS</span>
+                <div className={'stub-tag' + (full ? ' stub-tag--full' : '')}>
+                  <span className="lbl">BUS</span>
                   <span className="num">{String(i + 1).padStart(2, '0')}</span>
                 </div>
                 <div className="stub-head-body">
                   <span className="name">{m.nome}</span>
-                  <span className="meta">{used}/{m.capienza} POSTI</span>
+                  <span className="meta"><CountNum value={used} />/{m.capienza} POSTI</span>
                 </div>
               </div>
               <div style={{ padding: '6px 14px 12px' }}>
+                <div style={{ marginBottom: 10 }}><Gauge pct={(used / m.capienza) * 100} tone={full ? 'full' : ''} /></div>
                 {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>Vuoto.</div>}
                 {list.map(a => (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
