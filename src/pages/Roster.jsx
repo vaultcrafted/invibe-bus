@@ -54,9 +54,7 @@ export default function Roster() {
     const attivita = attivitaNome.trim()
     const pax = parseInt(attivitaPax, 10)
     if (!attivita || !Number.isFinite(pax) || pax <= 0) return
-    const altreVendite = (acquistiByRoster[r.id] || []).filter(a => a.attivita !== attivita).reduce((s, a) => s + a.pax, 0)
-    const disponibili = r.pax - altreVendite
-    if (pax > disponibili) { notify(t.tPurchaseTooMany(r.codice, r.pax, disponibili)); return }
+    if (pax > r.pax) { notify(t.tPurchaseTooMany(r.codice, r.pax)); return }
     setBusy(true)
     const { error } = await supabase.from('bus_acquisti')
       .upsert({ roster_id: r.id, attivita, pax }, { onConflict: 'roster_id,attivita' })
