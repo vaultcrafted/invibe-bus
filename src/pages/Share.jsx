@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Bus, Printer, RefreshCw } from 'lucide-react'
+import { Bus, Printer, RefreshCw, MapPin } from 'lucide-react'
 import { Gauge, CountNum, LiveDot } from '../components/Widgets'
-import { MapPin } from 'lucide-react'
+import { useLang } from '../lib/i18n.jsx'
 
 export default function Share() {
   const { id } = useParams()
+  const { t, lang, toggleLang } = useLang()
   const [transfer, setTransfer] = useState(undefined)
   const [gruppi, setGruppi] = useState([])
   const [mezzi, setMezzi] = useState([])
@@ -15,14 +16,14 @@ export default function Share() {
   const [updatedAt, setUpdatedAt] = useState(null)
 
   async function load() {
-    const [t, g, m, a, s] = await Promise.all([
+    const [tr, g, m, a, s] = await Promise.all([
       supabase.from('bus_transfer').select('*').eq('id', id).maybeSingle(),
       supabase.from('bus_gruppi').select('*').eq('transfer_id', id),
       supabase.from('bus_mezzi').select('*').eq('transfer_id', id).order('ordine'),
       supabase.from('bus_assegnazioni').select('*').eq('transfer_id', id),
       supabase.from('bus_staff').select('*').eq('transfer_id', id),
     ])
-    setTransfer(t.data ?? null)
+    setTransfer(tr.data ?? null)
     setGruppi(g.data || [])
     setMezzi(m.data || [])
     setAssegnazioni(a.data || [])
@@ -55,20 +56,25 @@ export default function Share() {
       .sort((a, b) => a.codice.localeCompare(b.codice, 'it'))
   }, [gruppi, assegnazioni])
 
+  const LangBtn = () => (
+    <button className="lang-toggle no-print" onClick={toggleLang} aria-label="Cambia lingua / Change language">
+      {lang === 'it' ? 'EN' : 'IT'}
+    </button>
+  )
+
   if (transfer === undefined) {
-    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', fontSize: 13 }}>caricamento…</div>
+    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', fontSize: 13 }}>{t.loading}</div>
   }
 
   if (transfer === null) {
     return (
       <div style={{ padding: '64px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
-        <div className="board-strip" style={{ borderRadius: 'var(--r-md)', justifyContent: 'center', marginBottom: 20 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bus size={15} className="flag" /> Invibe Bus</span>
+        <div className="board-strip" style={{ borderRadius: 'var(--r-md)', justifyContent: 'center', marginBottom: 20, gap: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bus size={15} className="flag" /> {t.appName}</span>
+          <LangBtn />
         </div>
-        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Questo link non è attivo</div>
-        <div style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
-          La condivisione di questa lista è stata disattivata. Chiedi a chi te l'ha mandata di riattivarla.
-        </div>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{t.linkNotActiveTitle}</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 15 }}>{t.linkNotActiveDesc}</div>
       </div>
     )
   }
@@ -83,26 +89,24 @@ export default function Share() {
     <div style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: 32 }}>
 
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <span>Invibe Bus</span>
+        <span>{t.appName}</span>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
-        <span className="sub"><LiveDot /> <CountNum value={liberiFlotta} /> liberi</span>
+        <span className="sub"><LiveDot /> <CountNum value={liberiFlotta} /> {t.liberi.toLowerCase()} <LangBtn /></span>
       </div>
 
       <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', alignItems: 'center' }}>
-        <button className="btn btn-outline" onClick={() => window.print()}><Printer size={16} /> Stampa</button>
-        <button className="btn btn-outline" onClick={load}><RefreshCw size={16} /> Aggiorna</button>
+        <button className="btn btn-outline" onClick={() => window.print()}><Printer size={16} /> {t.printBtn}</button>
+        <button className="btn btn-outline" onClick={load}><RefreshCw size={16} /> {t.refreshBtn}</button>
         {updatedAt && (
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--mono)' }}>
-            agg. {updatedAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+            {t.updatedAt(updatedAt.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' }))}
           </span>
         )}
       </div>
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {mezzi.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '36px 20px' }}>
-            Nessun bus ancora inserito per questo transfer.
-          </div>
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '36px 20px' }}>{t.emptyBuses}</div>
         )}
 
         {mezzi.map((m, i) => {
@@ -119,7 +123,7 @@ export default function Share() {
           const full = liberi <= 0
           const stopsMap = {}
           for (const a of list) {
-            const key = a.g.pickup_point || '(senza pickup)'
+            const key = a.g.pickup_point || '(—)'
             stopsMap[key] = (stopsMap[key] || 0) + a.pax
           }
           const stops = Object.entries(stopsMap).sort((a, b) => a[0].localeCompare(b[0], 'it'))
@@ -127,12 +131,12 @@ export default function Share() {
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
                 <div className={'stub-tag' + (full ? ' stub-tag--full' : '')}>
-                  <span className="lbl">{full ? 'PIENO' : 'LIBERI'}</span>
+                  <span className="lbl">{full ? t.pieno : t.liberi}</span>
                   <span className="num"><CountNum value={liberi} /></span>
                 </div>
                 <div className="stub-head-body">
                   <span className="name">{m.nome}</span>
-                  <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
+                  <span className="meta"><CountNum value={used} />/{m.capienza} {t.seatsOccupied}</span>
                   {stops.length > 0 && (
                     <span className="meta" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                       <MapPin size={11} style={{ flexShrink: 0 }} />
@@ -145,7 +149,7 @@ export default function Share() {
               </div>
               <div style={{ padding: '6px 14px 12px' }}>
                 <div style={{ marginBottom: 10 }}><Gauge pct={(used / m.capienza) * 100} tone={full ? 'full' : ''} /></div>
-                {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>Vuoto.</div>}
+                {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>{t.emptyBusList}</div>}
                 {list.map(a => (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
                     <span style={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -158,14 +162,14 @@ export default function Share() {
                 ))}
                 {staffQui.map(s => (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
-                    <span className="pill pill-signal">staff</span>
+                    <span className="pill pill-signal">{t.staffPill}</span>
                     <span style={{ flex: 1, fontWeight: 600, textAlign: 'right' }}>{s.nome}</span>
                     <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{s.pax}</span>
                   </div>
                 ))}
                 {(list.length > 0 || staffQui.length > 0) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 11, fontWeight: 700, fontSize: 14 }}>
-                    <span>Totale</span><span className="tab-num">{used} pax</span>
+                    <span>{t.totalLabel}</span><span className="tab-num">{used} {t.paxUnit}</span>
                   </div>
                 )}
               </div>
@@ -176,7 +180,7 @@ export default function Share() {
         {nonAssegnati.length > 0 && (
           <div className="card">
             <div style={{ padding: '12px 14px', background: 'var(--warn-bg)', color: 'var(--warn)', fontWeight: 700, fontSize: 14 }}>
-              Ancora da assegnare · {nonAssegnati.reduce((s, g) => s + g.restanti, 0)} pax
+              {t.remainingTitle(nonAssegnati.reduce((s, g) => s + g.restanti, 0))}
             </div>
             <div style={{ padding: '4px 14px 12px' }}>
               {nonAssegnati.map(g => (

@@ -7,6 +7,7 @@ import {
   ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin
 } from 'lucide-react'
 import { Gauge, CountNum, LiveDot } from '../components/Widgets'
+import { useLang } from '../lib/i18n.jsx'
 
 const TAGLI = [50, 53, 54, 63]
 
@@ -14,6 +15,7 @@ export default function Transfer() {
   const { id } = useParams()
   const navigate = useNavigate()
   const fileRef = useRef(null)
+  const { t, lang, toggleLang } = useLang()
 
   const [transfer, setTransfer] = useState(null)
   const [gruppi, setGruppi] = useState([])
@@ -41,14 +43,14 @@ export default function Transfer() {
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600) }
 
   async function load() {
-    const [t, g, m, a, s] = await Promise.all([
+    const [tr, g, m, a, s] = await Promise.all([
       supabase.from('bus_transfer').select('*').eq('id', id).single(),
       supabase.from('bus_gruppi').select('*').eq('transfer_id', id).order('codice'),
       supabase.from('bus_mezzi').select('*').eq('transfer_id', id).order('ordine'),
       supabase.from('bus_assegnazioni').select('*').eq('transfer_id', id),
       supabase.from('bus_staff').select('*').eq('transfer_id', id).order('created_at'),
     ])
-    setTransfer(t.data)
+    setTransfer(tr.data)
     setGruppi(g.data || [])
     setMezzi(m.data || [])
     setAssegnazioni(a.data || [])
@@ -87,7 +89,7 @@ export default function Transfer() {
   const pickups = useMemo(() => {
     const set = new Map()
     for (const g of gruppi) {
-      const p = g.pickup_point || '(senza pickup)'
+      const p = g.pickup_point || '(—)'
       if (!set.has(p)) set.set(p, [])
       set.get(p).push(g)
     }
@@ -121,7 +123,7 @@ export default function Transfer() {
       if (/^codice|^cod\.|^prenotaz/i.test(codice)) continue
       parsed.push({ codice, pickup_point: pickup, pax, alloggio })
     }
-    if (!parsed.length) { notify('Nel file non ho trovato righe valide (A codice, B pickup, C pax).'); return }
+    if (!parsed.length) { notify(t.tImportInvalid); return }
     setPreview(parsed)
   }
 
@@ -131,9 +133,9 @@ export default function Transfer() {
     const { error } = await supabase.from('bus_gruppi')
       .upsert(rows, { onConflict: 'transfer_id,codice' })
     setBusy(false)
-    if (error) { notify('Errore import: ' + error.message); return }
+    if (error) { notify(t.tImportError(error.message)); return }
     setPreview(null)
-    notify(`Importati ${rows.length} gruppi.`)
+    notify(t.tImportOk(rows.length))
     load()
   }
 
@@ -148,7 +150,7 @@ export default function Transfer() {
 
   async function removeBus(m) {
     const used = usedByMezzo[m.id] || 0
-    if (used > 0 && !confirm(`${m.nome} ha ${used} persone assegnate (gruppi e staff): tornano tra i gruppi da assegnare, lo staff viene rimosso. Eliminare?`)) return
+    if (used > 0 && !confirm(t.confirmRemoveBus(m.nome, used))) return
     await supabase.from('bus_mezzi').delete().eq('id', m.id)
     load()
   }
@@ -158,11 +160,11 @@ export default function Transfer() {
     const pax = parseInt(staffPax, 10) || 1
     if (!nome) return
     const liberi = m.capienza - (usedByMezzo[m.id] || 0)
-    if (pax > liberi) { notify(`Non ci stanno: solo ${liberi} posti liberi su ${m.nome}.`); return }
+    if (pax > liberi) { notify(t.tStaffNoRoom(liberi, m.nome)); return }
     setBusy(true)
     const { error } = await supabase.from('bus_staff').insert({ transfer_id: id, mezzo_id: m.id, nome, pax })
     setBusy(false)
-    if (error) { notify('Errore: ' + error.message); return }
+    if (error) { notify(t.tError(error.message)); return }
     setAddingStaffFor(null); setStaffNome(''); setStaffPax('1')
     load()
   }
@@ -183,27 +185,27 @@ export default function Transfer() {
       const rows = sel.map(g => ({ transfer_id: id, gruppo_id: g.id, mezzo_id: m.id, pax: restanti(g) }))
       const { error } = await supabase.from('bus_assegnazioni').insert(rows)
       setBusy(false)
-      if (error) { notify('Errore: ' + error.message); return }
+      if (error) { notify(t.tError(error.message)); return }
       setSelected(new Set())
-      notify(`${tot} pax su ${m.nome} · restano ${liberi - tot} posti`)
+      notify(t.tAssignOk(tot, m.nome, liberi - tot))
       load()
       return
     }
 
     if (sel.length === 1 && liberi > 0) {
       const g = sel[0]
-      if (confirm(`${g.codice} ha ${restanti(g)} pax ma su ${m.nome} restano ${liberi} posti.\nDividere il gruppo: ${liberi} qui e ${restanti(g) - liberi} da assegnare a un altro bus?`)) {
+      if (confirm(t.tSplitConfirm(g.codice, restanti(g), m.nome, liberi))) {
         setBusy(true)
         const { error } = await supabase.from('bus_assegnazioni').insert({ transfer_id: id, gruppo_id: g.id, mezzo_id: m.id, pax: liberi })
         setBusy(false)
-        if (error) { notify('Errore: ' + error.message); return }
+        if (error) { notify(t.tError(error.message)); return }
         setSelected(new Set([g.id]))
-        notify(`${g.codice} diviso: ${liberi} su ${m.nome}, ${restanti(g) - liberi} ancora da assegnare.`)
+        notify(t.tSplitOk(g.codice, liberi, m.nome, restanti(g) - liberi))
         load()
       }
       return
     }
-    notify(`Non ci stanno: ${tot} pax selezionati, ${liberi} posti liberi su ${m.nome}. Togli qualche gruppo, o seleziona un solo gruppo per dividerlo.`)
+    notify(t.tNoRoom(tot, liberi, m.nome))
   }
 
   async function unassign(a) {
@@ -211,8 +213,6 @@ export default function Transfer() {
     load()
   }
 
-  // Riempimento automatico: piazza i gruppi non ancora assegnati sui bus con posto,
-  // preferendo un bus solo per gruppo (best-fit) e dividendo un gruppo solo se necessario.
   async function autoFill() {
     const liberiMap = {}
     for (const m of mezzi) liberiMap[m.id] = m.capienza - (usedByMezzo[m.id] || 0)
@@ -247,16 +247,14 @@ export default function Transfer() {
       if (rimasto > 0) nonPiazzati += rimasto
     }
 
-    if (!planned.length) { notify(nonPiazzati > 0 ? `Nessun posto libero: ${nonPiazzati} pax non piazzabili.` : 'Niente da assegnare.'); return }
+    if (!planned.length) { notify(nonPiazzati > 0 ? t.tAutoNoRoom(nonPiazzati) : t.tAutoNothing); return }
     setBusy(true)
     const { error } = await supabase.from('bus_assegnazioni').insert(planned)
     setBusy(false)
-    if (error) { notify('Errore: ' + error.message); return }
+    if (error) { notify(t.tError(error.message)); return }
     setSelected(new Set())
     const piazzati = planned.reduce((s, p) => s + p.pax, 0)
-    notify(nonPiazzati > 0
-      ? `Assegnati ${piazzati} pax. Non ci stanno altri ${nonPiazzati} pax: serve un altro bus.`
-      : `Riempimento completato: ${piazzati} pax assegnati.`)
+    notify(nonPiazzati > 0 ? t.tAutoPartial(piazzati, nonPiazzati) : t.tAutoOk(piazzati))
     load()
   }
 
@@ -269,7 +267,7 @@ export default function Transfer() {
 
   function copyLink() {
     const url = window.location.origin + '/share/' + id
-    navigator.clipboard?.writeText(url).then(() => notify('Link copiato: apribile senza login.'))
+    navigator.clipboard?.writeText(url).then(() => notify(t.tLinkCopied))
       .catch(() => notify(url))
   }
 
@@ -291,12 +289,12 @@ export default function Transfer() {
       for (const a of assegnazioni.filter(a => a.mezzo_id === m.id)) {
         const g = gruppi.find(x => x.id === a.gruppo_id)
         if (!g) continue
-        const key = g.pickup_point || '(senza pickup)'
+        const key = g.pickup_point || '(—)'
         stopsMap[key] = (stopsMap[key] || 0) + a.pax
       }
       const tratta = Object.entries(stopsMap).sort((a, b) => a[0].localeCompare(b[0], 'it')).map(([p, pax]) => `${p} (${pax})`).join(' · ')
-      aoa.push([m.nome.toUpperCase(), '', '', `${tot}/${m.capienza} posti`])
-      if (tratta) aoa.push(['Tratta:', tratta, '', ''])
+      aoa.push([m.nome.toUpperCase(), '', '', `${tot}/${m.capienza}`])
+      if (tratta) aoa.push([t.trattaLabel, tratta, '', ''])
       aoa.push(['Codice', 'Pickup point', 'Alloggio', 'Pax'])
       for (const r of rows) aoa.push(r)
       aoa.push(['TOTALE', '', '', tot])
@@ -306,7 +304,7 @@ export default function Transfer() {
     ws['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 10 }]
     XLSX.utils.book_append_sheet(wb, ws, 'Bus')
 
-    const rest = gruppi.filter(g => restanti(g) > 0).map(g => ({ Codice: g.codice, 'Pickup point': g.pickup_point, Alloggio: g.alloggio || '', 'Pax da assegnare': restanti(g) }))
+    const rest = gruppi.filter(g => restanti(g) > 0).map(g => ({ Codice: g.codice, 'Pickup point': g.pickup_point, Alloggio: g.alloggio || '', Pax: restanti(g) }))
     if (rest.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rest), 'Non assegnati')
 
     XLSX.writeFile(wb, (transfer?.nome || 'transfer').replace(/[^\w\s-]/g, '') + ' - bus.xlsx')
@@ -317,9 +315,8 @@ export default function Transfer() {
       {[0, 1].map(i => <div key={i} className="skeleton" style={{ height: 120, animationDelay: (i * 90) + 'ms' }} />)}
     </div>
   )
-  if (!transfer) return <div style={{ padding: 40, textAlign: 'center' }}>Transfer non trovato.</div>
+  if (!transfer) return <div style={{ padding: 40, textAlign: 'center' }}>{t.notFound}</div>
 
-  const done = totPax > 0 && totAss >= totPax
   const totStaffPax = staff.reduce((s, x) => s + x.pax, 0)
   const totCapienza = mezzi.reduce((s, m) => s + m.capienza, 0)
   const totUsedFlotta = totAss + totStaffPax
@@ -331,10 +328,13 @@ export default function Transfer() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: selected.size ? 140 : 24 }}>
 
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <button onClick={() => navigate('/')} aria-label="Indietro" style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
+        <button onClick={() => navigate('/')} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
         <span className="sub">
-          <LiveDot /> <CountNum value={liberiFlotta} className={liberiFlotta < 0 ? 'tab-num' : 'tab-num'} /> liberi
+          <LiveDot /> <CountNum value={liberiFlotta} /> {t.liberi.toLowerCase()}
+          <button className="lang-toggle no-print" onClick={toggleLang} aria-label="Cambia lingua / Change language">
+            {lang === 'it' ? 'EN' : 'IT'}
+          </button>
         </span>
       </div>
 
@@ -343,14 +343,14 @@ export default function Transfer() {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 7, fontFamily: 'var(--mono)' }}>
           <span style={{ color: flottaPiena ? 'var(--go)' : liberiFlotta < 0 ? 'var(--stop)' : 'var(--text-secondary)' }}>
             {totCapienza === 0
-              ? 'nessun bus ancora'
+              ? t.noBusYet
               : flottaPiena
-                ? '✓ flotta piena'
+                ? t.fleetFull
                 : liberiFlotta < 0
-                  ? `${Math.abs(liberiFlotta)} pax oltre capienza`
-                  : <><CountNum value={liberiFlotta} /> posti liberi in flotta</>}
+                  ? t.overCapacity(Math.abs(liberiFlotta))
+                  : <><CountNum value={liberiFlotta} /> {t.freeInFleetSuffix}</>}
           </span>
-          <span>{mezzi.length} bus · {totCapienza} posti</span>
+          <span>{t.busesCount(mezzi.length, totCapienza)}</span>
         </div>
       </div>
 
@@ -360,44 +360,42 @@ export default function Transfer() {
           borderRadius: 'var(--r-md)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'flex-start', gap: 9,
         }}>
           <AlertTriangle size={17} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>Servono almeno {totPax - totCapienza} posti in più: {totPax} pax da trasportare, solo {totCapienza} posti sui bus attuali.</span>
+          <span>{t.capacityAlert(totPax - totCapienza, totPax, totCapienza)}</span>
         </div>
       )}
 
       <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', flexWrap: 'wrap' }}>
-        <button className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={16} /> Importa</button>
+        <button className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={16} /> {t.importBtn}</button>
         <button className="btn btn-outline" onClick={autoFill} disabled={busy || !mezzi.length || totPax - totAss <= 0}>
-          <Wand2 size={16} /> Riempi automaticamente
+          <Wand2 size={16} /> {t.autoFillBtn}
         </button>
         <button className="btn btn-outline" onClick={toggleShare} style={transfer.condiviso ? { background: 'var(--go-bg)', color: 'var(--go)', borderColor: 'transparent' } : {}}>
-          <Share2 size={16} /> {transfer.condiviso ? 'Link attivo' : 'Condividi'}
+          <Share2 size={16} /> {transfer.condiviso ? t.linkActiveBtn : t.shareBtn}
         </button>
-        {transfer.condiviso && <button className="btn btn-outline" onClick={copyLink}>Copia link</button>}
-        <button className="btn btn-outline" onClick={exportXlsx} disabled={!mezzi.length}><Download size={16} /> Excel</button>
+        {transfer.condiviso && <button className="btn btn-outline" onClick={copyLink}>{t.copyLinkBtn}</button>}
+        <button className="btn btn-outline" onClick={exportXlsx} disabled={!mezzi.length}><Download size={16} /> {t.excelBtn}</button>
       </div>
       <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFile} style={{ display: 'none' }} />
 
       {preview && (
         <div style={{ padding: '0 16px 12px' }}>
           <div className="card" style={{ padding: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>Anteprima import · {preview.length} gruppi · {preview.reduce((s, r) => s + r.pax, 0)} pax</div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>
-              I codici già presenti vengono aggiornati (pickup e pax), gli altri aggiunti. Le assegnazioni fatte restano.
-            </div>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{t.previewTitle(preview.length, preview.reduce((s, r) => s + r.pax, 0))}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>{t.previewDesc}</div>
             <div style={{ maxHeight: 180, overflow: 'auto', fontSize: 13, border: '1px solid var(--line)', borderRadius: 'var(--r-sm)', marginBottom: 10 }}>
               {preview.slice(0, 60).map((r, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, padding: '5px 10px', borderBottom: '1px solid var(--line)', fontFamily: 'var(--mono)' }}>
                   <span style={{ flex: 1, fontWeight: 600 }}>{r.codice}</span>
                   <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{r.pickup_point || '—'}</span>
                   {r.alloggio && <span style={{ flex: 1, color: 'var(--text-tertiary)', fontSize: 12 }}>{r.alloggio}</span>}
-                  <span>{r.pax} pax</span>
+                  <span>{r.pax} {t.paxUnit}</span>
                 </div>
               ))}
-              {preview.length > 60 && <div style={{ padding: 8, color: 'var(--text-tertiary)' }}>… e altri {preview.length - 60}</div>}
+              {preview.length > 60 && <div style={{ padding: 8, color: 'var(--text-tertiary)' }}>{t.andOthers(preview.length - 60)}</div>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={confirmImport} disabled={busy}><Check size={16} /> Importa</button>
-              <button className="btn btn-ghost" onClick={() => setPreview(null)}><X size={16} /> Annulla</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={confirmImport} disabled={busy}><Check size={16} /> {t.previewImportBtn}</button>
+              <button className="btn btn-ghost" onClick={() => setPreview(null)}><X size={16} /> {t.cancelBtn}</button>
             </div>
           </div>
         </div>
@@ -415,7 +413,7 @@ export default function Transfer() {
           for (const a of list) {
             const g = gruppi.find(x => x.id === a.gruppo_id)
             if (!g) continue
-            const key = g.pickup_point || '(senza pickup)'
+            const key = g.pickup_point || '(—)'
             stopsMap[key] = (stopsMap[key] || 0) + a.pax
           }
           const stops = Object.entries(stopsMap).sort((a, b) => a[0].localeCompare(b[0], 'it'))
@@ -425,12 +423,12 @@ export default function Transfer() {
                 <button onClick={() => { const c = new Set(collapsedBuses); c.has(m.id) ? c.delete(m.id) : c.add(m.id); setCollapsedBuses(c) }}
                   style={{ display: 'flex', alignItems: 'stretch', width: '100%', textAlign: 'left' }}>
                   <div className={'stub-tag' + (full ? ' stub-tag--full' : liberi < 0 ? ' stub-tag--over' : '')}>
-                    <span className="lbl">{full ? 'PIENO' : 'LIBERI'}</span>
+                    <span className="lbl">{full ? t.pieno : t.liberi}</span>
                     <span className="num"><CountNum value={liberi} /></span>
                   </div>
                   <div className="stub-head-body">
                     <span className="name">{m.nome}</span>
-                    <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
+                    <span className="meta"><CountNum value={used} />/{m.capienza} {t.seatsOccupied}</span>
                     {stops.length > 0 && (
                       <span className="meta" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                         <MapPin size={11} style={{ flexShrink: 0 }} />
@@ -448,7 +446,7 @@ export default function Transfer() {
               <div className={'acc' + (busOpen ? ' open' : '')}>
                 <div style={{ padding: 14 }}>
                 <Gauge pct={(used / m.capienza) * 100} tone={full ? 'full' : liberi < 0 ? 'over' : ''} />
-                {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 12 }}>Vuoto. Seleziona i gruppi sotto e assegnali qui.</div>}
+                {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 12 }}>{t.emptyBusMsg}</div>}
                 {list.map(a => {
                   const g = gruppi.find(x => x.id === a.gruppo_id)
                   if (!g) return null
@@ -461,45 +459,45 @@ export default function Transfer() {
                       </span>
                       <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{g.pickup_point}</span>
                       <span className="tab-num" style={{ fontSize: 14 }}>{a.pax}{diviso ? `/${g.pax}` : ''}</span>
-                      {diviso && <span className="pill pill-warn">diviso</span>}
-                      <button className="no-print" onClick={() => unassign(a)} aria-label={'Togli ' + g.codice} style={{ color: 'var(--stop)', display: 'flex', padding: 4 }}><X size={15} /></button>
+                      {diviso && <span className="pill pill-warn">{t.diviso}</span>}
+                      <button className="no-print" onClick={() => unassign(a)} aria-label={t.deleteBtn + ' ' + g.codice} style={{ color: 'var(--stop)', display: 'flex', padding: 4 }}><X size={15} /></button>
                     </div>
                   )
                 })}
                 {staffQui.map(s => (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
-                    <span className="pill pill-signal">staff</span>
+                    <span className="pill pill-signal">{t.staffPill}</span>
                     <span style={{ flex: 1, fontWeight: 600 }}>{s.nome}</span>
                     <span className="tab-num" style={{ fontSize: 14 }}>{s.pax}</span>
-                    <button className="no-print" onClick={() => removeStaff(s)} aria-label={'Togli ' + s.nome} style={{ color: 'var(--stop)', display: 'flex', padding: 4 }}><X size={15} /></button>
+                    <button className="no-print" onClick={() => removeStaff(s)} aria-label={t.deleteBtn + ' ' + s.nome} style={{ color: 'var(--stop)', display: 'flex', padding: 4 }}><X size={15} /></button>
                   </div>
                 ))}
 
                 {selected.size > 0 && (
                   <button className="btn btn-primary no-print" style={{ width: '100%', marginTop: 12 }} onClick={() => assignTo(m)} disabled={busy}>
-                    Assegna qui ({selPax} pax)
+                    {t.assignHereBtn(selPax)}
                   </button>
                 )}
 
                 {addingStaffFor === m.id ? (
                   <div className="no-print" style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                    <input className="input-field" style={{ flex: 1, minWidth: 120 }} placeholder="Nome staff" value={staffNome}
+                    <input className="input-field" style={{ flex: 1, minWidth: 120 }} placeholder={t.staffNamePlaceholder} value={staffNome}
                       onChange={e => setStaffNome(e.target.value)} autoFocus onKeyDown={e => e.key === 'Enter' && addStaff(m)} />
                     <input className="input-field" style={{ width: 64 }} type="number" min="1" inputMode="numeric" value={staffPax}
                       onChange={e => setStaffPax(e.target.value)} onKeyDown={e => e.key === 'Enter' && addStaff(m)} />
-                    <button className="btn btn-primary" onClick={() => addStaff(m)} disabled={!staffNome.trim() || busy}>Ok</button>
-                    <button className="btn btn-ghost" onClick={() => { setAddingStaffFor(null); setStaffNome(''); setStaffPax('1') }}>Annulla</button>
+                    <button className="btn btn-primary" onClick={() => addStaff(m)} disabled={!staffNome.trim() || busy}>{t.okBtn}</button>
+                    <button className="btn btn-ghost" onClick={() => { setAddingStaffFor(null); setStaffNome(''); setStaffPax('1') }}>{t.cancelBtn}</button>
                   </div>
                 ) : (
                   <button className="btn btn-outline no-print" style={{ width: '100%', marginTop: 12 }}
                     onClick={() => { setAddingStaffFor(m.id); setStaffNome(''); setStaffPax('1') }}>
-                    <UserPlus size={15} /> Aggiungi staff
+                    <UserPlus size={15} /> {t.addStaffBtn}
                   </button>
                 )}
 
                 <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                   <button onClick={() => removeBus(m)} style={{ color: 'var(--stop)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, padding: 4 }}>
-                    <Trash2 size={13} /> Elimina bus
+                    <Trash2 size={13} /> {t.deleteBusBtn}
                   </button>
                 </div>
                 </div>
@@ -510,35 +508,35 @@ export default function Transfer() {
 
         {addingBus ? (
           <div className="card" style={{ padding: 16 }}>
-            <div className="input-label">Taglio del bus (posti)</div>
+            <div className="input-label">{t.busSizeLabel}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {TAGLI.map(c => <button key={c} className="btn btn-outline tab-num" onClick={() => addBus(c)}>{c}</button>)}
-              <input className="input-field" style={{ width: 90 }} type="number" inputMode="numeric" placeholder="altro"
+              <input className="input-field" style={{ width: 90 }} type="number" inputMode="numeric" placeholder={t.otherPlaceholder}
                 value={customCap} onChange={e => setCustomCap(e.target.value)} onKeyDown={e => e.key === 'Enter' && addBus(customCap)} />
-              <button className="btn btn-primary" onClick={() => addBus(customCap)} disabled={!customCap}>Ok</button>
-              <button className="btn btn-ghost" onClick={() => setAddingBus(false)}>Annulla</button>
+              <button className="btn btn-primary" onClick={() => addBus(customCap)} disabled={!customCap}>{t.okBtn}</button>
+              <button className="btn btn-ghost" onClick={() => setAddingBus(false)}>{t.cancelBtn}</button>
             </div>
           </div>
         ) : (
-          <button className="btn btn-outline no-print" onClick={() => setAddingBus(true)} style={{ borderStyle: 'dashed' }}><Plus size={16} /> Aggiungi bus</button>
+          <button className="btn btn-outline no-print" onClick={() => setAddingBus(true)} style={{ borderStyle: 'dashed' }}><Plus size={16} /> {t.addBusBtn}</button>
         )}
       </div>
 
       <div style={{ padding: '22px 16px 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ fontWeight: 800, fontSize: 17, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={17} /> Gruppi</div>
-        <select className="input-field" style={{ width: 'auto', padding: '8px 10px', fontSize: 14 }} value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="Ordina per">
-          <option value="codice">A–Z codice</option>
-          <option value="pax">Pax (decrescente)</option>
+        <div style={{ fontWeight: 800, fontSize: 17, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={17} /> {t.groupsTitle}</div>
+        <select className="input-field" style={{ width: 'auto', padding: '8px 10px', fontSize: 14 }} value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="sort">
+          <option value="codice">{t.sortAZ}</option>
+          <option value="pax">{t.sortPax}</option>
         </select>
         <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} /> mostra assegnati
+          <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} /> {t.showAssigned}
         </label>
       </div>
 
       {pickups.length > 1 && (
         <div className="no-print" style={{ display: 'flex', gap: 6, padding: '0 16px 10px', overflowX: 'auto' }}>
           <button className="btn" onClick={() => setFilterPickup('')}
-            style={{ padding: '6px 12px', fontSize: 13, borderRadius: 'var(--r-full)', background: !filterPickup ? 'var(--ink)' : 'var(--bg-mute)', color: !filterPickup ? 'var(--on-dark)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>Tutti</button>
+            style={{ padding: '6px 12px', fontSize: 13, borderRadius: 'var(--r-full)', background: !filterPickup ? 'var(--ink)' : 'var(--bg-mute)', color: !filterPickup ? 'var(--on-dark)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>{t.allFilter}</button>
           {pickups.map(([p]) => (
             <button key={p} className="btn" onClick={() => setFilterPickup(filterPickup === p ? '' : p)}
               style={{ padding: '6px 12px', fontSize: 13, borderRadius: 'var(--r-full)', background: filterPickup === p ? 'var(--ink)' : 'var(--bg-mute)', color: filterPickup === p ? 'var(--on-dark)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>{p}</button>
@@ -549,7 +547,7 @@ export default function Transfer() {
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {gruppi.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '36px 20px' }}>
-            Nessun gruppo. Premi <b>Importa</b> e carica il file: colonna A codice prenotazione, B pickup point, C pax.
+            {t.emptyGroupsMsg}
           </div>
         )}
         {pickups.filter(([p]) => !filterPickup || p === filterPickup).map(([p, gs], idx) => {
@@ -564,7 +562,7 @@ export default function Transfer() {
               }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'var(--bg-soft)', textAlign: 'left' }}>
                 <span style={{ fontWeight: 700, flex: 1 }}>{p}</span>
                 <span className="tab-num" style={{ fontSize: 13, color: paxRest ? 'var(--text-secondary)' : 'var(--go)' }}>
-                  {paxRest ? `${paxRest} pax` : 'completo'}
+                  {paxRest ? t.paxDaAssegnare(paxRest) : t.complete}
                 </span>
                 <ChevronDown size={16} style={{ transition: 'transform .25s ease', transform: isOpen ? 'rotate(180deg)' : 'none' }} />
               </button>
@@ -587,8 +585,8 @@ export default function Transfer() {
                           {g.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{g.alloggio}</span>}
                         </span>
                         {r === 0
-                          ? <span style={{ fontSize: 13, color: 'var(--go)', fontWeight: 700 }}>✓ {g.pax} pax</span>
-                          : <span className="tab-num" style={{ fontSize: 14 }}>{r < g.pax ? `${r}/${g.pax}` : g.pax} pax</span>}
+                          ? <span style={{ fontSize: 13, color: 'var(--go)', fontWeight: 700 }}>✓ {g.pax} {t.paxUnit}</span>
+                          : <span className="tab-num" style={{ fontSize: 14 }}>{r < g.pax ? `${r}/${g.pax}` : g.pax} {t.paxUnit}</span>}
                       </label>
                     )
                   })}
@@ -607,9 +605,9 @@ export default function Transfer() {
         }}>
           <div style={{ maxWidth: 608, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ flex: 1, fontSize: 14 }}>
-              <b className="tab-num" style={{ color: 'var(--signal)' }}>{selected.size} gruppi · {selPax} pax</b> — tocca "Assegna qui" su un bus
+              <b className="tab-num" style={{ color: 'var(--signal)' }}>{t.selectionBar(selected.size, selPax)}</b> {t.selectionHint}
             </span>
-            <button className="btn btn-ghost" style={{ padding: '9px 14px', background: 'rgba(255,255,255,.1)', color: 'var(--on-dark)' }} onClick={() => setSelected(new Set())}>Svuota</button>
+            <button className="btn btn-ghost" style={{ padding: '9px 14px', background: 'rgba(255,255,255,.1)', color: 'var(--on-dark)' }} onClick={() => setSelected(new Set())}>{t.emptySelBtn}</button>
           </div>
         </div>
       )}
