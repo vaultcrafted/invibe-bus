@@ -164,6 +164,7 @@ const dict = {
     activitiesEmpty: 'Nessuna vendita registrata. Aggiungile nell\'Anagrafica.',
     tPurchaseOk: (attivita, pax, codice) => `${attivita} · ${pax} pax su ${codice}.`,
     tPurchaseRemoved: 'Vendita rimossa.',
+    tPurchaseTooMany: (codice, totGruppo, disponibili) => `${codice} ha ${totGruppo} pax nel gruppo: puoi venderne al massimo ${disponibili}.`,
   },
 
   en: {
@@ -326,6 +327,7 @@ const dict = {
     activitiesEmpty: 'No sales recorded yet. Add them in the Roster.',
     tPurchaseOk: (attivita, pax, codice) => `${attivita} · ${pax} pax on ${codice}.`,
     tPurchaseRemoved: 'Sale removed.',
+    tPurchaseTooMany: (codice, totGruppo, disponibili) => `${codice} has ${totGruppo} pax in the group: you can sell at most ${disponibili}.`,
   },
 }
 
