@@ -74,6 +74,9 @@ export default function Share() {
 
   const totPax = gruppi.reduce((s, g) => s + g.pax, 0)
   const totAss = assegnazioni.reduce((s, a) => s + a.pax, 0)
+  const totStaffPax = staff.reduce((s, x) => s + x.pax, 0)
+  const totCapienza = mezzi.reduce((s, m) => s + m.capienza, 0)
+  const liberiFlotta = totCapienza - totAss - totStaffPax
 
   return (
     <div style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: 32 }}>
@@ -81,7 +84,7 @@ export default function Share() {
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
         <span>Invibe Bus</span>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
-        <span className="sub"><LiveDot /> <CountNum value={totAss} />/{totPax} PAX</span>
+        <span className="sub"><LiveDot /> <CountNum value={liberiFlotta} /> liberi</span>
       </div>
 
       <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', alignItems: 'center' }}>

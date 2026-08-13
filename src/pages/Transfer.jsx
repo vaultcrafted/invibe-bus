@@ -250,7 +250,12 @@ export default function Transfer() {
   if (!transfer) return <div style={{ padding: 40, textAlign: 'center' }}>Transfer non trovato.</div>
 
   const done = totPax > 0 && totAss >= totPax
-  const pctTot = totPax ? Math.min(100, (totAss / totPax) * 100) : 0
+  const totStaffPax = staff.reduce((s, x) => s + x.pax, 0)
+  const totCapienza = mezzi.reduce((s, m) => s + m.capienza, 0)
+  const totUsedFlotta = totAss + totStaffPax
+  const liberiFlotta = totCapienza - totUsedFlotta
+  const pctFlotta = totCapienza ? Math.min(100, (totUsedFlotta / totCapienza) * 100) : 0
+  const flottaPiena = totCapienza > 0 && liberiFlotta <= 0
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: selected.size ? 140 : 24 }}>
@@ -258,14 +263,24 @@ export default function Transfer() {
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
         <button onClick={() => navigate('/')} aria-label="Indietro" style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
-        <span className="sub"><LiveDot /> <CountNum value={totAss} />/{totPax}</span>
+        <span className="sub">
+          <LiveDot /> <CountNum value={liberiFlotta} className={liberiFlotta < 0 ? 'tab-num' : 'tab-num'} /> liberi
+        </span>
       </div>
 
       <div style={{ padding: '14px 16px 0' }}>
-        <Gauge pct={pctTot} tone={done ? 'full' : ''} style={{ height: 11 }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: done ? 'var(--go)' : 'var(--text-secondary)', marginTop: 7, fontFamily: 'var(--mono)' }}>
-          <span>{done ? '✓ tutti assegnati' : <><CountNum value={totPax - totAss} /> pax da assegnare</>}</span>
-          <span>{mezzi.length} bus · {mezzi.reduce((s, m) => s + m.capienza, 0)} posti</span>
+        <Gauge pct={pctFlotta} tone={flottaPiena ? 'full' : liberiFlotta < 0 ? 'over' : ''} style={{ height: 11 }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 7, fontFamily: 'var(--mono)' }}>
+          <span style={{ color: flottaPiena ? 'var(--go)' : liberiFlotta < 0 ? 'var(--stop)' : 'var(--text-secondary)' }}>
+            {totCapienza === 0
+              ? 'nessun bus ancora'
+              : flottaPiena
+                ? '✓ flotta piena'
+                : liberiFlotta < 0
+                  ? `${Math.abs(liberiFlotta)} pax oltre capienza`
+                  : <><CountNum value={liberiFlotta} /> posti liberi in flotta</>}
+          </span>
+          <span>{mezzi.length} bus · {totCapienza} posti</span>
         </div>
       </div>
 

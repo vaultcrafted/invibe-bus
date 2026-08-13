@@ -2,8 +2,8 @@
 
 :root {
   /* board */
-  --ink: #0B0D10;
-  --ink-soft: #171A1F;
+  --ink: #1E6BF1;
+  --ink-soft: #1450C8;
   --paper: #FBFAF6;
   --bg: #FFFFFF;
   --bg-soft: #F7F6F2;
@@ -129,7 +129,7 @@ a { color: inherit; }
   flex-shrink: 0; width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 12px 6px; border-right: 2px dashed rgba(244,242,234,.25);
   position: relative;
-  background: linear-gradient(165deg, #181c22 0%, #05060a 100%);
+  background: linear-gradient(165deg, #4C8DF9 0%, #1450C8 100%);
   transition: background .35s ease;
 }
 .stub-tag--full { background: linear-gradient(165deg, #23a870 0%, #0f5c3d 100%); }
