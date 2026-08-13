@@ -311,7 +311,7 @@ export default function Transfer() {
   }
 
   if (loading) return (
-    <div style={{ maxWidth: 640, width: '100%', margin: '0 auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="shell" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {[0, 1].map(i => <div key={i} className="skeleton" style={{ height: 120, animationDelay: (i * 90) + 'ms' }} />)}
     </div>
   )
