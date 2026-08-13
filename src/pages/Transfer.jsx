@@ -108,9 +108,10 @@ export default function Transfer() {
       const codice = String(r[0] ?? '').trim()
       const pickup = String(r[1] ?? '').trim()
       const pax = parseInt(r[2], 10)
+      const alloggio = String(r[3] ?? '').trim()
       if (!codice || !Number.isFinite(pax) || pax <= 0) continue
       if (/^codice|^cod\.|^prenotaz/i.test(codice)) continue
-      parsed.push({ codice, pickup_point: pickup, pax })
+      parsed.push({ codice, pickup_point: pickup, pax, alloggio })
     }
     if (!parsed.length) { notify('Nel file non ho trovato righe valide (A codice, B pickup, C pax).'); return }
     setPreview(parsed)
@@ -201,9 +202,9 @@ export default function Transfer() {
     for (const m of mezzi) {
       const rows = assegnazioni.filter(a => a.mezzo_id === m.id).map(a => {
         const g = gruppi.find(x => x.id === a.gruppo_id)
-        return { Codice: g?.codice, 'Pickup point': g?.pickup_point, Pax: a.pax }
+        return { Codice: g?.codice, 'Pickup point': g?.pickup_point, Alloggio: g?.alloggio || '', Pax: a.pax }
       }).sort((a, b) => String(a['Pickup point']).localeCompare(String(b['Pickup point']), 'it'))
-      rows.push({ Codice: 'TOTALE', 'Pickup point': '', Pax: rows.reduce((s, r) => s + r.Pax, 0) })
+      rows.push({ Codice: 'TOTALE', 'Pickup point': '', Alloggio: '', Pax: rows.reduce((s, r) => s + r.Pax, 0) })
       const ws = XLSX.utils.json_to_sheet(rows)
       XLSX.utils.book_append_sheet(wb, ws, (m.nome + ' (' + m.capienza + ')').slice(0, 31))
     }
@@ -261,6 +262,7 @@ export default function Transfer() {
                 <div key={i} style={{ display: 'flex', gap: 8, padding: '5px 10px', borderBottom: '1px solid var(--line)', fontFamily: 'var(--mono)' }}>
                   <span style={{ flex: 1, fontWeight: 600 }}>{r.codice}</span>
                   <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{r.pickup_point || '—'}</span>
+                  {r.alloggio && <span style={{ flex: 1, color: 'var(--text-tertiary)', fontSize: 12 }}>{r.alloggio}</span>}
                   <span>{r.pax} pax</span>
                 </div>
               ))}
@@ -301,7 +303,10 @@ export default function Transfer() {
                   const diviso = a.pax < g.pax
                   return (
                     <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
-                      <span style={{ flex: 1, fontWeight: 600 }}>{g.codice}</span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 600 }}>{g.codice}</span>
+                        {g.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{g.alloggio}</span>}
+                      </span>
                       <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{g.pickup_point}</span>
                       <span className="tab-num" style={{ fontSize: 14 }}>{a.pax}{diviso ? `/${g.pax}` : ''}</span>
                       {diviso && <span className="pill pill-warn">diviso</span>}
@@ -398,7 +403,10 @@ export default function Transfer() {
                       }}>
                         <input type="checkbox" disabled={r === 0} checked={isSel} style={{ width: 20, height: 20 }}
                           onChange={() => { const s = new Set(selected); s.has(g.id) ? s.delete(g.id) : s.add(g.id); setSelected(s) }} />
-                        <span style={{ flex: 1, fontWeight: 600 }}>{g.codice}</span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontWeight: 600 }}>{g.codice}</span>
+                          {g.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{g.alloggio}</span>}
+                        </span>
                         {r === 0
                           ? <span style={{ fontSize: 13, color: 'var(--go)', fontWeight: 700 }}>✓ {g.pax} pax</span>
                           : <span className="tab-num" style={{ fontSize: 14 }}>{r < g.pax ? `${r}/${g.pax}` : g.pax} pax</span>}

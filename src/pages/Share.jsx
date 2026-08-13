@@ -125,7 +125,10 @@ export default function Share() {
                 {list.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: '10px 0' }}>Vuoto.</div>}
                 {list.map(a => (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
-                    <span style={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.g.codice}</span>
+                    <span style={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {a.g.codice}
+                      {a.g.alloggio && <span style={{ display: 'block', fontSize: 11.5, fontWeight: 400, color: 'var(--text-tertiary)' }}>{a.g.alloggio}</span>}
+                    </span>
                     <span style={{ flex: 1, color: 'var(--text-secondary)', fontSize: 13, textAlign: 'right' }}>{a.g.pickup_point}</span>
                     <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{a.pax}{a.pax < a.g.pax ? `/${a.g.pax}` : ''}</span>
                   </div>
