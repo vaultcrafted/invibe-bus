@@ -26,6 +26,25 @@ export function LiveDot() {
   return <span className="live-dot" aria-hidden="true" />
 }
 
+// Ciambella capienza flotta: reale, non decorativa. Si riempie all'apertura.
+export function FleetDonut({ pct, size = 108 }) {
+  const [dash, setDash] = useState(0)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setDash(Math.max(0, Math.min(100, pct))))
+    return () => cancelAnimationFrame(id)
+  }, [pct])
+  const r = 42, c = 2 * Math.PI * r
+  const offset = c - (dash / 100) * c
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size}>
+      <circle cx="50" cy="50" r={r} fill="none" stroke="var(--bg-mute)" strokeWidth="11" />
+      <circle cx="50" cy="50" r={r} fill="none" stroke="var(--iv-blue)" strokeWidth="11"
+        strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
+        transform="rotate(-90 50 50)" style={{ transition: 'stroke-dashoffset .6s cubic-bezier(.16,1,.3,1)' }} />
+    </svg>
+  )
+}
+
 // Cartellino statistica: numero animato + etichetta, per le home page ricche di dati.
 const TONES = {
   blue: { bg: 'var(--iv-blue-light)', fg: 'var(--iv-blue-dark)' },
