@@ -124,7 +124,7 @@ export default function Home() {
   const pctFlotta = totCapienza ? (totUsedFlotta / totCapienza) * 100 : 0
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto' }}>
+    <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <Bus size={16} className="flag" /> {t.appName}
@@ -147,7 +147,7 @@ export default function Home() {
         </div>
 
         {transfers.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="stats-grid">
             <StatCard icon={Bus} label={t.statTransfer} value={transfers.length} tone="blue" style={{ '--d': '20ms' }} />
             <StatCard icon={Users} label={t.statPax} value={totPaxGestiti} tone="go" style={{ '--d': '50ms' }} />
             <StatCard icon={Bus} label={t.statBus} value={totMezzi} tone="signal" style={{ '--d': '80ms' }} />
@@ -178,43 +178,47 @@ export default function Home() {
           </button>
         )}
 
-        {totMezzi > 0 && (
-          <div className="card enter" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, '--d': '160ms' }}>
-            <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
-              <FleetDonut pct={pctFlotta} />
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <span className="tab-num" style={{ fontSize: 21, fontWeight: 800, color: liberiFlotta < 0 ? 'var(--stop)' : 'var(--text-primary)' }}>
-                  <CountNum value={liberiFlotta} />
-                </span>
-                <span style={{ fontSize: 9.5, color: 'var(--text-tertiary)', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>{t.fleetFree}</span>
-              </div>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{t.fleetTitle}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {t.fleetDesc(totUsedFlotta, totCapienza, totMezzi, transfers.length)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activity.length > 0 && (
-          <div className="card enter" style={{ '--d': '190ms' }}>
-            <div style={{ padding: '13px 16px 10px', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', gap: 7 }}>
-              <Activity size={15} /> {t.activityTitle}
-            </div>
-            {activity.map((ev, i) => {
-              const Icon = ev.icon
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 16px', borderTop: '1px solid var(--line)' }}>
-                  <div className={'pill pill-' + ev.tone} style={{ width: 26, height: 26, borderRadius: 'var(--r-full)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>
-                    <Icon size={13} />
+        {(totMezzi > 0 || activity.length > 0) && (
+          <div className="dash-row">
+            {totMezzi > 0 && (
+              <div className="card enter" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, '--d': '160ms' }}>
+                <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
+                  <FleetDonut pct={pctFlotta} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="tab-num" style={{ fontSize: 21, fontWeight: 800, color: liberiFlotta < 0 ? 'var(--stop)' : 'var(--text-primary)' }}>
+                      <CountNum value={liberiFlotta} />
+                    </span>
+                    <span style={{ fontSize: 9.5, color: 'var(--text-tertiary)', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>{t.fleetFree}</span>
                   </div>
-                  <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{ev.text}</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', flexShrink: 0, whiteSpace: 'nowrap', marginTop: 2 }}>{timeAgo(ev.at)}</span>
                 </div>
-              )
-            })}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{t.fleetTitle}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {t.fleetDesc(totUsedFlotta, totCapienza, totMezzi, transfers.length)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activity.length > 0 && (
+              <div className="card enter" style={{ '--d': '190ms' }}>
+                <div style={{ padding: '13px 16px 10px', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <Activity size={15} /> {t.activityTitle}
+                </div>
+                {activity.map((ev, i) => {
+                  const Icon = ev.icon
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 16px', borderTop: '1px solid var(--line)' }}>
+                      <div className={'pill pill-' + ev.tone} style={{ width: 26, height: 26, borderRadius: 'var(--r-full)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>
+                        <Icon size={13} />
+                      </div>
+                      <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>{ev.text}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--mono)', flexShrink: 0, whiteSpace: 'nowrap', marginTop: 2 }}>{timeAgo(ev.at)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -236,7 +240,8 @@ export default function Home() {
           <div style={{ fontWeight: 800, fontSize: 15, marginTop: 6 }}>{t.transfersSection}</div>
         )}
 
-        {transfers.map((t2, i) => {
+        <div className="cards-grid">
+          {transfers.map((t2, i) => {
           const s = stats[t2.id] || { tot: 0, ass: 0 }
           const pct = s.tot ? Math.min(100, (s.ass / s.tot) * 100) : 0
           const st2 = statusOf(s)
@@ -269,6 +274,7 @@ export default function Home() {
             </div>
           )
         })}
+        </div>
       </div>
     </div>
   )

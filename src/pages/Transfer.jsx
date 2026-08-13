@@ -325,7 +325,7 @@ export default function Transfer() {
   const flottaPiena = totCapienza > 0 && liberiFlotta <= 0
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: selected.size ? 140 : 24 }}>
+    <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: selected.size ? 140 : 24 }}>
 
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
         <button onClick={() => navigate('/')} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
@@ -401,6 +401,8 @@ export default function Transfer() {
         </div>
       )}
 
+      <div className="transfer-layout split">
+      <div className="bus-col" style={{ minWidth: 0 }}>
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {mezzi.map((m, i) => {
           const used = usedByMezzo[m.id] || 0
@@ -521,7 +523,9 @@ export default function Transfer() {
           <button className="btn btn-outline no-print" onClick={() => setAddingBus(true)} style={{ borderStyle: 'dashed' }}><Plus size={16} /> {t.addBusBtn}</button>
         )}
       </div>
+      </div>
 
+      <div className="groups-col" style={{ minWidth: 0 }}>
       <div style={{ padding: '22px 16px 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontWeight: 800, fontSize: 17, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={17} /> {t.groupsTitle}</div>
         <select className="input-field" style={{ width: 'auto', padding: '8px 10px', fontSize: 14 }} value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="sort">
@@ -595,6 +599,8 @@ export default function Transfer() {
             </div>
           )
         })}
+      </div>
+      </div>
       </div>
 
       {selected.size > 0 && (

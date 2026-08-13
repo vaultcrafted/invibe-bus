@@ -86,7 +86,7 @@ export default function Share() {
   const liberiFlotta = totCapienza - totAss - totStaffPax
 
   return (
-    <div style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: 32 }}>
+    <div className="shell" style={{ flex: 1, paddingBottom: 32 }}>
 
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
         <span>{t.appName}</span>
@@ -104,7 +104,7 @@ export default function Share() {
         )}
       </div>
 
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="cards-grid" style={{ padding: '0 16px' }}>
         {mezzi.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '36px 20px' }}>{t.emptyBuses}</div>
         )}
