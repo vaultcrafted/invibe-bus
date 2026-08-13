@@ -188,6 +188,27 @@ input[type="checkbox"] { accent-color: var(--iv-blue); }
 .pill-go { background: var(--go-bg); color: var(--go); }
 .pill-warn { background: var(--warn-bg); color: var(--warn); }
 .pill-signal { background: rgba(255,179,0,.15); color: var(--signal-dim); }
+.pill-blue { background: var(--iv-blue-light); color: var(--iv-blue-dark); }
+.pill-neutral { background: var(--bg-mute); color: var(--text-secondary); }
+
+/* ── banner "nuovo transfer": vivo, con texture e illustrazione ── */
+.hero-banner {
+  width: 100%; text-align: left; border-radius: var(--r-lg); overflow: hidden; position: relative;
+  background-color: var(--iv-blue);
+  background-image: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(135deg, #4C8DF9 0%, var(--iv-blue-dark) 100%);
+  background-size: 6px 6px, 100% 100%;
+  padding: 20px; color: #fff; display: flex; align-items: center; gap: 14px;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.hero-banner:active { transform: scale(.98); }
+@media (hover: hover) {
+  .hero-banner:hover { box-shadow: 0 10px 28px rgba(20,80,200,.35); }
+}
+.hero-banner .hb-icon {
+  flex-shrink: 0; width: 60px; height: 60px; border-radius: var(--r-md);
+  background: rgba(255,255,255,.14); display: flex; align-items: center; justify-content: center;
+  border: 1.5px dashed rgba(255,255,255,.35);
+}
 
 /* focus visibile da tastiera */
 :focus-visible { outline: 2px solid var(--iv-blue); outline-offset: 2px; }
