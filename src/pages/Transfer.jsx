@@ -33,6 +33,7 @@ export default function Transfer() {
 
   const [preview, setPreview] = useState(null)
   const [showRosterPicker, setShowRosterPicker] = useState(false)
+  const [activities, setActivities] = useState([])
   const [addingBus, setAddingBus] = useState(false)
   const [customCap, setCustomCap] = useState('')
   const [addingStaffFor, setAddingStaffFor] = useState(null)
@@ -42,6 +43,15 @@ export default function Transfer() {
   const [toast, setToast] = useState('')
 
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600) }
+
+  useEffect(() => {
+    if (!showRosterPicker) return
+    supabase.from('bus_acquisti').select('attivita, pax').then(({ data }) => {
+      const m = {}
+      for (const a of data || []) m[a.attivita] = (m[a.attivita] || 0) + a.pax
+      setActivities(Object.entries(m).sort((a, b) => a[0].localeCompare(b[0], 'it')))
+    })
+  }, [showRosterPicker])
 
   async function load() {
     const [tr, g, m, a, s] = await Promise.all([
@@ -150,6 +160,25 @@ export default function Transfer() {
     const rows = subset.map(r => ({
       transfer_id: id, codice: r.codice, pickup_point: r.pickup_point, pax: r.pax, alloggio: r.alloggio,
     }))
+    const { error } = await supabase.from('bus_gruppi').upsert(rows, { onConflict: 'transfer_id,codice' })
+    setBusy(false)
+    if (error) { notify(t.tError(error.message)); return }
+    notify(t.tRosterImportOk(rows.length))
+    load()
+  }
+
+  async function importFromActivity(attivita) {
+    setShowRosterPicker(false)
+    const [{ data: roster }, { data: acq }] = await Promise.all([
+      supabase.from('bus_roster').select('*'),
+      supabase.from('bus_acquisti').select('*').eq('attivita', attivita),
+    ])
+    if (!acq || !acq.length) { notify(t.rosterImportNone); return }
+    setBusy(true)
+    const rows = acq.map(a => {
+      const r = (roster || []).find(x => x.id === a.roster_id)
+      return r ? { transfer_id: id, codice: r.codice, pickup_point: r.pickup_point, pax: a.pax, alloggio: r.alloggio } : null
+    }).filter(Boolean)
     const { error } = await supabase.from('bus_gruppi').upsert(rows, { onConflict: 'transfer_id,codice' })
     setBusy(false)
     if (error) { notify(t.tError(error.message)); return }
@@ -383,6 +412,11 @@ export default function Transfer() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={() => importFromRoster(false)} disabled={busy}>{t.rosterImportAll}</button>
               <button className="btn btn-outline" onClick={() => importFromRoster(true)} disabled={busy}>{t.rosterImportPackage}</button>
+              {activities.map(([nome, pax]) => (
+                <button key={nome} className="btn btn-outline" onClick={() => importFromActivity(nome)} disabled={busy}>
+                  {t.importFromActivity(nome)} · {pax}
+                </button>
+              ))}
               <button className="btn btn-ghost" onClick={() => setShowRosterPicker(false)}>{t.cancelBtn}</button>
             </div>
           </div>

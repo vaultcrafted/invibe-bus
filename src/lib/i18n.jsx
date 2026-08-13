@@ -152,6 +152,18 @@ const dict = {
     rosterImportNone: "L'anagrafica è vuota. Vai su \"Anagrafica\" e carica il file madre.",
     tRosterImportOk: n => `Importati ${n} capigruppo dal file madre.`,
     tRosterUploadOk: n => `Anagrafica aggiornata: ${n} capigruppo.`,
+
+    // Vendite attività (Pazuzu, Disco 54, ecc.)
+    purchasesTitle: 'Vendite',
+    addPurchase: 'Aggiungi vendita',
+    activityPlaceholder: 'es. Pazuzu, Disco 54',
+    paxSoldPlaceholder: 'pax',
+    noPurchases: 'nessuna vendita',
+    removePurchaseConfirm: (attivita, codice) => `Togliere "${attivita}" da ${codice}?`,
+    importFromActivity: attivita => `Chi ha comprato: ${attivita}`,
+    activitiesEmpty: 'Nessuna vendita registrata. Aggiungile nell\'Anagrafica.',
+    tPurchaseOk: (attivita, pax, codice) => `${attivita} · ${pax} pax su ${codice}.`,
+    tPurchaseRemoved: 'Vendita rimossa.',
   },
 
   en: {
@@ -302,6 +314,18 @@ const dict = {
     rosterImportNone: 'The roster is empty. Go to "Roster" and upload the master file.',
     tRosterImportOk: n => `Imported ${n} group leaders from the master file.`,
     tRosterUploadOk: n => `Roster updated: ${n} group leaders.`,
+
+    // Activity sales (Pazuzu, Disco 54, etc.)
+    purchasesTitle: 'Sales',
+    addPurchase: 'Add sale',
+    activityPlaceholder: 'e.g. Pazuzu, Disco 54',
+    paxSoldPlaceholder: 'pax',
+    noPurchases: 'no sales',
+    removePurchaseConfirm: (attivita, codice) => `Remove "${attivita}" from ${codice}?`,
+    importFromActivity: attivita => `Who bought: ${attivita}`,
+    activitiesEmpty: 'No sales recorded yet. Add them in the Roster.',
+    tPurchaseOk: (attivita, pax, codice) => `${attivita} · ${pax} pax on ${codice}.`,
+    tPurchaseRemoved: 'Sale removed.',
   },
 }
 

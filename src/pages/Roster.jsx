@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { ArrowLeft, Upload, Search, Trash2, Check, X, Users } from 'lucide-react'
+import { ArrowLeft, Upload, Search, Trash2, Check, X, Users, Plus, Tag } from 'lucide-react'
 import { useLang } from '../lib/i18n.jsx'
 
 export default function Roster() {
@@ -11,17 +11,25 @@ export default function Roster() {
   const fileRef = useRef(null)
 
   const [rows, setRows] = useState([])
+  const [acquisti, setAcquisti] = useState([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [preview, setPreview] = useState(null)
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
+  const [addingFor, setAddingFor] = useState(null)
+  const [attivitaNome, setAttivitaNome] = useState('')
+  const [attivitaPax, setAttivitaPax] = useState('')
 
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600) }
 
   async function load() {
-    const { data } = await supabase.from('bus_roster').select('*').order('codice')
-    setRows(data || [])
+    const [r, a] = await Promise.all([
+      supabase.from('bus_roster').select('*').order('codice'),
+      supabase.from('bus_acquisti').select('*'),
+    ])
+    setRows(r.data || [])
+    setAcquisti(a.data || [])
     setLoading(false)
   }
 
@@ -29,9 +37,37 @@ export default function Roster() {
     load()
     const ch = supabase.channel('roster')
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'bus_roster' }, () => load())
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'bus_acquisti' }, () => load())
     ch.subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [])
+
+  const acquistiByRoster = useMemo(() => {
+    const m = {}
+    for (const a of acquisti) { (m[a.roster_id] ||= []).push(a) }
+    return m
+  }, [acquisti])
+
+  const activityNames = useMemo(() => [...new Set(acquisti.map(a => a.attivita))].sort((a, b) => a.localeCompare(b, 'it')), [acquisti])
+
+  async function addPurchase(r) {
+    const attivita = attivitaNome.trim()
+    const pax = parseInt(attivitaPax, 10)
+    if (!attivita || !Number.isFinite(pax) || pax <= 0) return
+    setBusy(true)
+    const { error } = await supabase.from('bus_acquisti')
+      .upsert({ roster_id: r.id, attivita, pax }, { onConflict: 'roster_id,attivita' })
+    setBusy(false)
+    if (error) { notify(t.tError(error.message)); return }
+    setAddingFor(null); setAttivitaNome(''); setAttivitaPax('')
+    notify(t.tPurchaseOk(attivita, pax, r.codice))
+  }
+
+  async function removePurchase(a, codice) {
+    if (!confirm(t.removePurchaseConfirm(a.attivita, codice))) return
+    await supabase.from('bus_acquisti').delete().eq('id', a.id)
+    notify(t.tPurchaseRemoved)
+  }
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase()
@@ -122,6 +158,18 @@ export default function Roster() {
           </div>
         )}
 
+        {activityNames.length > 0 && (
+          <div className="card enter" style={{ padding: 14 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 9 }}>{t.purchasesTitle}</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {activityNames.map(nome => {
+                const tot = acquisti.filter(a => a.attivita === nome).reduce((s, a) => s + a.pax, 0)
+                return <span key={nome} className="pill pill-signal" style={{ gap: 6 }}><Tag size={10} /> {nome} · {tot}</span>
+              })}
+            </div>
+          </div>
+        )}
+
         <button className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={16} /> {t.rosterUpload}</button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFile} style={{ display: 'none' }} />
         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: -6 }}>{t.rosterColPackageHint}</div>
@@ -166,28 +214,58 @@ export default function Roster() {
 
         {rows.length > 0 && (
           <div className="card">
-            {filtered.map((r, i) => (
-              <div key={r.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
-                borderTop: i === 0 ? 'none' : '1px solid var(--line)',
-              }}>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontWeight: 600 }}>{r.codice}</span>
-                  {r.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{r.alloggio}</span>}
-                </span>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>{r.pickup_point}</span>
-                <span className="tab-num" style={{ fontSize: 14, flexShrink: 0 }}>{r.pax}</span>
-                <button onClick={() => togglePkg(r)} aria-label={t.rosterTogglePackage}
-                  className={'pill ' + (r.escursioni ? 'pill-blue' : 'pill-neutral')} style={{ flexShrink: 0 }}>
-                  <Users size={11} /> {r.escursioni ? t.rosterPackageOn : '—'}
-                </button>
-                <button onClick={() => remove(r)} aria-label={t.deleteBtn + ' ' + r.codice} style={{ color: 'var(--stop)', display: 'flex', padding: 4, flexShrink: 0 }}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+            {filtered.map((r, i) => {
+              const purchases = acquistiByRoster[r.id] || []
+              return (
+                <div key={r.id} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line)', padding: '11px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: 600 }}>{r.codice}</span>
+                      {r.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{r.alloggio}</span>}
+                    </span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>{r.pickup_point}</span>
+                    <span className="tab-num" style={{ fontSize: 14, flexShrink: 0 }}>{r.pax}</span>
+                    <button onClick={() => togglePkg(r)} aria-label={t.rosterTogglePackage}
+                      className={'pill ' + (r.escursioni ? 'pill-blue' : 'pill-neutral')} style={{ flexShrink: 0 }}>
+                      <Users size={11} /> {r.escursioni ? t.rosterPackageOn : '—'}
+                    </button>
+                    <button onClick={() => remove(r)} aria-label={t.deleteBtn + ' ' + r.codice} style={{ color: 'var(--stop)', display: 'flex', padding: 4, flexShrink: 0 }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: purchases.length || addingFor === r.id ? 9 : 0 }}>
+                    {purchases.map(a => (
+                      <span key={a.id} className="pill pill-signal" style={{ gap: 6 }}>
+                        <Tag size={10} /> {a.attivita} · {a.pax}
+                        <button onClick={() => removePurchase(a, r.codice)} aria-label={'X'} style={{ marginLeft: 2, display: 'flex' }}><X size={11} /></button>
+                      </span>
+                    ))}
+                    {addingFor === r.id ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input className="input-field" list="activity-names" style={{ width: 140, padding: '6px 9px', fontSize: 13 }}
+                          placeholder={t.activityPlaceholder} value={attivitaNome} onChange={e => setAttivitaNome(e.target.value)} autoFocus />
+                        <input className="input-field" type="number" min="1" style={{ width: 60, padding: '6px 9px', fontSize: 13 }}
+                          placeholder={t.paxSoldPlaceholder} value={attivitaPax} onChange={e => setAttivitaPax(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && addPurchase(r)} />
+                        <button className="btn btn-primary" style={{ padding: '6px 10px', fontSize: 13 }} onClick={() => addPurchase(r)} disabled={busy}>{t.okBtn}</button>
+                        <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 13 }} onClick={() => setAddingFor(null)}>{t.cancelBtn}</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setAddingFor(r.id); setAttivitaNome(''); setAttivitaPax('') }}
+                        className="pill pill-neutral" style={{ gap: 5 }}>
+                        <Plus size={11} /> {t.addPurchase}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
+        <datalist id="activity-names">
+          {activityNames.map(n => <option key={n} value={n} />)}
+        </datalist>
       </div>
 
       {toast && (
