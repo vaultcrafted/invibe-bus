@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import * as XLSX from 'xlsx'
 import {
   ArrowLeft, Upload, Plus, Bus, Trash2, Share2, Download,
-  ChevronDown, Check, X, Users, UserPlus
+  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle
 } from 'lucide-react'
 import { Gauge, CountNum, LiveDot } from '../components/Widgets'
 
@@ -26,6 +26,7 @@ export default function Transfer() {
   const [sortBy, setSortBy] = useState('codice')
   const [filterPickup, setFilterPickup] = useState('')
   const [collapsed, setCollapsed] = useState(new Set())
+  const [collapsedBuses, setCollapsedBuses] = useState(new Set())
   const [showDone, setShowDone] = useState(false)
 
   const [preview, setPreview] = useState(null)
@@ -210,6 +211,55 @@ export default function Transfer() {
     load()
   }
 
+  // Riempimento automatico: piazza i gruppi non ancora assegnati sui bus con posto,
+  // preferendo un bus solo per gruppo (best-fit) e dividendo un gruppo solo se necessario.
+  async function autoFill() {
+    const liberiMap = {}
+    for (const m of mezzi) liberiMap[m.id] = m.capienza - (usedByMezzo[m.id] || 0)
+    const existingPairs = new Set(assegnazioni.map(a => a.gruppo_id + '|' + a.mezzo_id))
+    const daAssegnare = gruppi.map(g => ({ ...g, rest: restanti(g) })).filter(g => g.rest > 0).sort((a, b) => b.rest - a.rest)
+    const busiOrdinati = [...mezzi].sort((a, b) => a.ordine - b.ordine)
+    const planned = []
+    let nonPiazzati = 0
+
+    for (const g of daAssegnare) {
+      let rimasto = g.rest
+      const interi = busiOrdinati.filter(m => liberiMap[m.id] >= rimasto && !existingPairs.has(g.id + '|' + m.id))
+      if (interi.length) {
+        interi.sort((a, b) => liberiMap[a.id] - liberiMap[b.id])
+        const m = interi[0]
+        planned.push({ transfer_id: id, gruppo_id: g.id, mezzo_id: m.id, pax: rimasto })
+        liberiMap[m.id] -= rimasto
+        existingPairs.add(g.id + '|' + m.id)
+        continue
+      }
+      const parziali = busiOrdinati.filter(m => liberiMap[m.id] > 0 && !existingPairs.has(g.id + '|' + m.id))
+        .sort((a, b) => liberiMap[b.id] - liberiMap[a.id])
+      for (const m of parziali) {
+        if (rimasto <= 0) break
+        const preso = Math.min(liberiMap[m.id], rimasto)
+        if (preso <= 0) continue
+        planned.push({ transfer_id: id, gruppo_id: g.id, mezzo_id: m.id, pax: preso })
+        liberiMap[m.id] -= preso
+        existingPairs.add(g.id + '|' + m.id)
+        rimasto -= preso
+      }
+      if (rimasto > 0) nonPiazzati += rimasto
+    }
+
+    if (!planned.length) { notify(nonPiazzati > 0 ? `Nessun posto libero: ${nonPiazzati} pax non piazzabili.` : 'Niente da assegnare.'); return }
+    setBusy(true)
+    const { error } = await supabase.from('bus_assegnazioni').insert(planned)
+    setBusy(false)
+    if (error) { notify('Errore: ' + error.message); return }
+    setSelected(new Set())
+    const piazzati = planned.reduce((s, p) => s + p.pax, 0)
+    notify(nonPiazzati > 0
+      ? `Assegnati ${piazzati} pax. Non ci stanno altri ${nonPiazzati} pax: serve un altro bus.`
+      : `Riempimento completato: ${piazzati} pax assegnati.`)
+    load()
+  }
+
   async function toggleShare() {
     const v = !transfer.condiviso
     await supabase.from('bus_transfer').update({ condiviso: v, updated_at: new Date().toISOString() }).eq('id', id)
@@ -225,20 +275,31 @@ export default function Transfer() {
 
   function exportXlsx() {
     const wb = XLSX.utils.book_new()
+    const aoa = []
+    aoa.push(['INVIBE BUS', transfer?.nome || '', '', ''])
+    aoa.push([])
     for (const m of mezzi) {
       const rows = assegnazioni.filter(a => a.mezzo_id === m.id).map(a => {
         const g = gruppi.find(x => x.id === a.gruppo_id)
-        return { Codice: g?.codice, 'Pickup point': g?.pickup_point, Alloggio: g?.alloggio || '', Pax: a.pax }
-      }).sort((a, b) => String(a['Pickup point']).localeCompare(String(b['Pickup point']), 'it'))
+        return [g?.codice || '', g?.pickup_point || '', g?.alloggio || '', a.pax]
+      }).sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'it'))
       for (const s of staff.filter(s => s.mezzo_id === m.id)) {
-        rows.push({ Codice: 'STAFF · ' + s.nome, 'Pickup point': '', Alloggio: '', Pax: s.pax })
+        rows.push(['STAFF · ' + s.nome, '', '', s.pax])
       }
-      rows.push({ Codice: 'TOTALE', 'Pickup point': '', Alloggio: '', Pax: rows.reduce((s, r) => s + r.Pax, 0) })
-      const ws = XLSX.utils.json_to_sheet(rows)
-      XLSX.utils.book_append_sheet(wb, ws, (m.nome + ' (' + m.capienza + ')').slice(0, 31))
+      const tot = rows.reduce((s, r) => s + r[3], 0)
+      aoa.push([m.nome.toUpperCase(), '', '', `${tot}/${m.capienza} posti`])
+      aoa.push(['Codice', 'Pickup point', 'Alloggio', 'Pax'])
+      for (const r of rows) aoa.push(r)
+      aoa.push(['TOTALE', '', '', tot])
+      aoa.push([])
     }
-    const rest = gruppi.filter(g => restanti(g) > 0).map(g => ({ Codice: g.codice, 'Pickup point': g.pickup_point, 'Pax da assegnare': restanti(g) }))
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 10 }]
+    XLSX.utils.book_append_sheet(wb, ws, 'Bus')
+
+    const rest = gruppi.filter(g => restanti(g) > 0).map(g => ({ Codice: g.codice, 'Pickup point': g.pickup_point, Alloggio: g.alloggio || '', 'Pax da assegnare': restanti(g) }))
     if (rest.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rest), 'Non assegnati')
+
     XLSX.writeFile(wb, (transfer?.nome || 'transfer').replace(/[^\w\s-]/g, '') + ' - bus.xlsx')
   }
 
@@ -284,8 +345,21 @@ export default function Transfer() {
         </div>
       </div>
 
+      {totCapienza > 0 && totPax > totCapienza && (
+        <div className="no-print" style={{
+          margin: '12px 16px 0', padding: '11px 14px', background: 'var(--stop-bg)', color: 'var(--stop)',
+          borderRadius: 'var(--r-md)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'flex-start', gap: 9,
+        }}>
+          <AlertTriangle size={17} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>Servono almeno {totPax - totCapienza} posti in più: {totPax} pax da trasportare, solo {totCapienza} posti sui bus attuali.</span>
+        </div>
+      )}
+
       <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', flexWrap: 'wrap' }}>
         <button className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={16} /> Importa</button>
+        <button className="btn btn-outline" onClick={autoFill} disabled={busy || !mezzi.length || totPax - totAss <= 0}>
+          <Wand2 size={16} /> Riempi automaticamente
+        </button>
         <button className="btn btn-outline" onClick={toggleShare} style={transfer.condiviso ? { background: 'var(--go-bg)', color: 'var(--go)', borderColor: 'transparent' } : {}}>
           <Share2 size={16} /> {transfer.condiviso ? 'Link attivo' : 'Condividi'}
         </button>
@@ -327,19 +401,27 @@ export default function Transfer() {
           const list = assegnazioni.filter(a => a.mezzo_id === m.id)
           const full = liberi === 0
           const staffQui = staff.filter(s => s.mezzo_id === m.id)
+          const busOpen = !collapsedBuses.has(m.id)
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
-                <div className={'stub-tag' + (full ? ' stub-tag--full' : liberi < 0 ? ' stub-tag--over' : '')}>
-                  <span className="lbl">{full ? 'PIENO' : 'LIBERI'}</span>
-                  <span className="num"><CountNum value={liberi} /></span>
-                </div>
-                <div className="stub-head-body">
-                  <span className="name">{m.nome}</span>
-                  <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
-                </div>
+                <button onClick={() => { const c = new Set(collapsedBuses); c.has(m.id) ? c.delete(m.id) : c.add(m.id); setCollapsedBuses(c) }}
+                  style={{ display: 'flex', alignItems: 'stretch', width: '100%', textAlign: 'left' }}>
+                  <div className={'stub-tag' + (full ? ' stub-tag--full' : liberi < 0 ? ' stub-tag--over' : '')}>
+                    <span className="lbl">{full ? 'PIENO' : 'LIBERI'}</span>
+                    <span className="num"><CountNum value={liberi} /></span>
+                  </div>
+                  <div className="stub-head-body">
+                    <span className="name">{m.nome}</span>
+                    <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', flexShrink: 0 }}>
+                    <ChevronDown size={18} style={{ transition: 'transform .25s ease', transform: busOpen ? 'rotate(180deg)' : 'none', color: 'var(--on-dark-dim)' }} />
+                  </div>
+                </button>
               </div>
-              <div style={{ padding: 14 }}>
+              <div className={'acc' + (busOpen ? ' open' : '')}>
+                <div style={{ padding: 14 }}>
                 <Gauge pct={(used / m.capienza) * 100} tone={full ? 'full' : liberi < 0 ? 'over' : ''} />
                 {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 12 }}>Vuoto. Seleziona i gruppi sotto e assegnali qui.</div>}
                 {list.map(a => {
@@ -394,6 +476,7 @@ export default function Transfer() {
                   <button onClick={() => removeBus(m)} style={{ color: 'var(--stop)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, padding: 4 }}>
                     <Trash2 size={13} /> Elimina bus
                   </button>
+                </div>
                 </div>
               </div>
             </div>
