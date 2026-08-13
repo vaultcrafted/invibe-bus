@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import * as XLSX from 'xlsx'
 import {
   ArrowLeft, Upload, Plus, Bus, Trash2, Share2, Download,
-  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle
+  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin
 } from 'lucide-react'
 import { Gauge, CountNum, LiveDot } from '../components/Widgets'
 
@@ -287,7 +287,16 @@ export default function Transfer() {
         rows.push(['STAFF · ' + s.nome, '', '', s.pax])
       }
       const tot = rows.reduce((s, r) => s + r[3], 0)
+      const stopsMap = {}
+      for (const a of assegnazioni.filter(a => a.mezzo_id === m.id)) {
+        const g = gruppi.find(x => x.id === a.gruppo_id)
+        if (!g) continue
+        const key = g.pickup_point || '(senza pickup)'
+        stopsMap[key] = (stopsMap[key] || 0) + a.pax
+      }
+      const tratta = Object.entries(stopsMap).sort((a, b) => a[0].localeCompare(b[0], 'it')).map(([p, pax]) => `${p} (${pax})`).join(' · ')
       aoa.push([m.nome.toUpperCase(), '', '', `${tot}/${m.capienza} posti`])
+      if (tratta) aoa.push(['Tratta:', tratta, '', ''])
       aoa.push(['Codice', 'Pickup point', 'Alloggio', 'Pax'])
       for (const r of rows) aoa.push(r)
       aoa.push(['TOTALE', '', '', tot])
@@ -402,6 +411,14 @@ export default function Transfer() {
           const full = liberi === 0
           const staffQui = staff.filter(s => s.mezzo_id === m.id)
           const busOpen = !collapsedBuses.has(m.id)
+          const stopsMap = {}
+          for (const a of list) {
+            const g = gruppi.find(x => x.id === a.gruppo_id)
+            if (!g) continue
+            const key = g.pickup_point || '(senza pickup)'
+            stopsMap[key] = (stopsMap[key] || 0) + a.pax
+          }
+          const stops = Object.entries(stopsMap).sort((a, b) => a[0].localeCompare(b[0], 'it'))
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
@@ -414,6 +431,14 @@ export default function Transfer() {
                   <div className="stub-head-body">
                     <span className="name">{m.nome}</span>
                     <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
+                    {stops.length > 0 && (
+                      <span className="meta" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                        <MapPin size={11} style={{ flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {stops.map(([p, pax]) => `${p} (${pax})`).join(' · ')}
+                        </span>
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', flexShrink: 0 }}>
                     <ChevronDown size={18} style={{ transition: 'transform .25s ease', transform: busOpen ? 'rotate(180deg)' : 'none', color: 'var(--on-dark-dim)' }} />

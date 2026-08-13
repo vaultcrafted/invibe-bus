@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Bus, Printer, RefreshCw } from 'lucide-react'
 import { Gauge, CountNum, LiveDot } from '../components/Widgets'
+import { MapPin } from 'lucide-react'
 
 export default function Share() {
   const { id } = useParams()
@@ -116,6 +117,12 @@ export default function Share() {
           const used = list.reduce((s, a) => s + a.pax, 0) + staffQui.reduce((s, x) => s + x.pax, 0)
           const liberi = m.capienza - used
           const full = liberi <= 0
+          const stopsMap = {}
+          for (const a of list) {
+            const key = a.g.pickup_point || '(senza pickup)'
+            stopsMap[key] = (stopsMap[key] || 0) + a.pax
+          }
+          const stops = Object.entries(stopsMap).sort((a, b) => a[0].localeCompare(b[0], 'it'))
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
@@ -126,6 +133,14 @@ export default function Share() {
                 <div className="stub-head-body">
                   <span className="name">{m.nome}</span>
                   <span className="meta"><CountNum value={used} />/{m.capienza} POSTI OCCUPATI</span>
+                  {stops.length > 0 && (
+                    <span className="meta" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                      <MapPin size={11} style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {stops.map(([p, pax]) => `${p} (${pax})`).join(' · ')}
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
               <div style={{ padding: '6px 14px 12px' }}>
