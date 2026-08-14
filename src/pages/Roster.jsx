@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { ArrowLeft, Upload, Search, Trash2, Check, X, Users, Plus, Tag } from 'lucide-react'
+import { ArrowLeft, Upload, Search, Trash2, Check, X, Users, Plus, Tag, UserRound } from 'lucide-react'
 import { useLang } from '../lib/i18n.jsx'
 
 export default function Roster() {
@@ -18,6 +18,8 @@ export default function Roster() {
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
   const [addingFor, setAddingFor] = useState(null)
+  const [genderEditFor, setGenderEditFor] = useState(null)
+  const [genderUomini, setGenderUomini] = useState('')
   const [attivitaNome, setAttivitaNome] = useState('')
   const [attivitaPax, setAttivitaPax] = useState('')
 
@@ -95,9 +97,11 @@ export default function Roster() {
       const alloggio = String(r[3] ?? '').trim()
       const pkgRaw = String(r[4] ?? '').trim().toLowerCase()
       const escursioni = ['si', 'sì', 'yes', 'y', '1', 'x', 'true'].includes(pkgRaw)
+      const uominiRaw = parseInt(r[5], 10)
+      const uomini = Number.isFinite(uominiRaw) && uominiRaw >= 0 && uominiRaw <= pax ? uominiRaw : null
       if (!codice || !Number.isFinite(pax) || pax <= 0) continue
       if (/^codice|^cod\.|^prenotaz/i.test(codice)) continue
-      parsed.push({ codice, pickup_point: pickup, pax, alloggio, escursioni })
+      parsed.push({ codice, pickup_point: pickup, pax, alloggio, escursioni, uomini })
     }
     if (!parsed.length) { notify(t.tImportInvalid); return }
     setPreview(parsed)
@@ -116,6 +120,13 @@ export default function Roster() {
 
   async function togglePkg(r) {
     await supabase.from('bus_roster').update({ escursioni: !r.escursioni, updated_at: new Date().toISOString() }).eq('id', r.id)
+  }
+
+  async function setGenere(r) {
+    const uomini = parseInt(genderUomini, 10)
+    if (!Number.isFinite(uomini) || uomini < 0 || uomini > r.pax) { notify(t.tError('0–' + r.pax)); return }
+    await supabase.from('bus_roster').update({ uomini, updated_at: new Date().toISOString() }).eq('id', r.id)
+    setGenderEditFor(null); setGenderUomini('')
   }
 
   async function remove(r) {
@@ -223,6 +234,21 @@ export default function Roster() {
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontWeight: 600 }}>{r.codice}</span>
                       {r.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{r.alloggio}</span>}
+                      {genderEditFor === r.id ? (
+                        <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 5 }}>
+                          <input type="number" min="0" max={r.pax} className="input-field" style={{ width: 52, padding: '4px 7px', fontSize: 12 }}
+                            value={genderUomini} onChange={e => setGenderUomini(e.target.value)} autoFocus onKeyDown={e => e.key === 'Enter' && setGenere(r)} />
+                          <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{t.menLabel}</span>
+                          <button onClick={() => setGenere(r)} className="btn btn-primary" style={{ padding: '3px 9px', fontSize: 11 }}>{t.okBtn}</button>
+                          <button onClick={() => setGenderEditFor(null)} className="btn btn-ghost" style={{ padding: '3px 9px', fontSize: 11 }}>{t.cancelBtn}</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => { setGenderEditFor(r.id); setGenderUomini(r.uomini != null ? String(r.uomini) : '') }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 5, fontSize: 11, color: r.uomini == null ? 'var(--text-tertiary)' : 'var(--text-secondary)' }}
+                          aria-label={t.genderTapHint}>
+                          <UserRound size={11} /> {r.uomini != null ? `${r.uomini}${t.menLabel[0]} · ${r.pax - r.uomini}${t.womenLabel[0]}` : t.genderUnknown}
+                        </button>
+                      )}
                     </span>
                     <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>{r.pickup_point}</span>
                     <span className="tab-num" style={{ fontSize: 14, flexShrink: 0 }}>{r.pax}</span>

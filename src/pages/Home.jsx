@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Plus, Bus, ChevronRight, Trash2, Users, Share2, UserPlus, Activity, ClipboardList } from 'lucide-react'
-import { Gauge, CountNum, LiveDot, StatCard, FleetDonut } from '../components/Widgets'
+import { Plus, Bus, ChevronRight, Trash2, Users, Share2, UserPlus, Activity, ClipboardList, HelpCircle } from 'lucide-react'
+import { Gauge, CountNum, LiveDot, StatCard, FleetDonut, HelpModal } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
+import { useMode } from '../lib/mode.jsx'
 
 export default function Home() {
   const navigate = useNavigate()
   const { t, lang, toggleLang } = useLang()
+  const { agency, homePath, transferPath } = useMode()
+  const [showHelp, setShowHelp] = useState(false)
   const [transfers, setTransfers] = useState([])
   const [stats, setStats] = useState({})
   const [totMezzi, setTotMezzi] = useState(0)
@@ -109,7 +112,7 @@ export default function Home() {
     const n = nome.trim()
     if (!n) return
     const { data, error } = await supabase.from('bus_transfer').insert({ nome: n }).select().single()
-    if (!error && data) navigate('/t/' + data.id)
+    if (!error && data) navigate(transferPath(data.id))
   }
 
   async function remove(t2) {
@@ -131,11 +134,25 @@ export default function Home() {
         </span>
         <span className="sub">
           <LiveDot /> {t.manifestCount(transfers.length)}
+          {!agency && (
+            <button className="lang-toggle no-print" onClick={() => navigate('/roster')} aria-label={t.rosterTitle} style={{ marginLeft: 2 }}>
+              <ClipboardList size={12} style={{ verticalAlign: -2 }} /> {t.rosterBackHome}
+            </button>
+          )}
+          <button className="lang-toggle no-print" onClick={() => setShowHelp(true)} aria-label={t.helpBtn}>
+            <HelpCircle size={12} style={{ verticalAlign: -2 }} /> {t.helpBtn}
+          </button>
           <button className="lang-toggle no-print" onClick={toggleLang} aria-label="Cambia lingua / Change language">
             {lang === 'it' ? 'EN' : 'IT'}
           </button>
         </span>
       </div>
+
+      {showHelp && (
+        <HelpModal title={t.helpTitle} closeLabel={t.helpClose}
+          steps={agency ? t.helpStepsAgency : t.helpStepsStaff}
+          onClose={() => setShowHelp(false)} />
+      )}
 
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -203,7 +220,7 @@ export default function Home() {
           const st2 = statusOf(s)
           return (
             <div key={t2.id} className="stub enter" style={{ '--d': (220 + i * 45) + 'ms' }}>
-              <button onClick={() => navigate('/t/' + t2.id)}
+              <button onClick={() => navigate(transferPath(t2.id))}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 4, textAlign: 'left' }}>
                 <div className={'stub-tag' + (st2.tag ? ' ' + st2.tag : '')}>
                   <span className="lbl">{st2.label.toUpperCase()}</span>

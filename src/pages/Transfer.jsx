@@ -4,10 +4,11 @@ import { supabase } from '../lib/supabase'
 import * as XLSX from 'xlsx'
 import {
   ArrowLeft, Upload, Plus, Bus, Trash2, Share2, Download,
-  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin, ClipboardList
+  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin, ClipboardList, HelpCircle, UserRound
 } from 'lucide-react'
-import { Gauge, CountNum, LiveDot, busColorStyle } from '../components/Widgets'
+import { Gauge, CountNum, LiveDot, busColorStyle, HelpModal, GenderBar } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
+import { useMode } from '../lib/mode.jsx'
 
 const TAGLI = [50, 53, 54, 63]
 
@@ -16,6 +17,10 @@ export default function Transfer() {
   const navigate = useNavigate()
   const fileRef = useRef(null)
   const { t, lang, toggleLang } = useLang()
+  const { agency, homePath } = useMode()
+  const [showHelp, setShowHelp] = useState(false)
+  const [genderEditFor, setGenderEditFor] = useState(null)
+  const [genderUomini, setGenderUomini] = useState('')
 
   const [transfer, setTransfer] = useState(null)
   const [gruppi, setGruppi] = useState([])
@@ -94,6 +99,26 @@ export default function Transfer() {
     return m
   }, [assegnazioni, staff])
 
+  const genderByMezzo = useMemo(() => {
+    const m = {}
+    for (const a of assegnazioni) {
+      const g = gruppi.find(x => x.id === a.gruppo_id)
+      if (!g) continue
+      const b = (m[a.mezzo_id] ||= { uomini: 0, donne: 0, sconosciuti: 0 })
+      if (g.uomini == null) b.sconosciuti += a.pax
+      else { b.uomini += g.uomini; b.donne += Math.max(0, g.pax - g.uomini) }
+    }
+    return m
+  }, [assegnazioni, gruppi])
+
+  async function setGenere(g) {
+    const uomini = parseInt(genderUomini, 10)
+    if (!Number.isFinite(uomini) || uomini < 0 || uomini > g.pax) { notify(t.tError('0–' + g.pax)); return }
+    await supabase.from('bus_gruppi').update({ uomini }).eq('id', g.id)
+    setGenderEditFor(null); setGenderUomini('')
+    load()
+  }
+
   const totPax = gruppi.reduce((s, g) => s + g.pax, 0)
   const totAss = Object.values(assByGruppo).reduce((s, v) => s + v, 0)
 
@@ -130,9 +155,11 @@ export default function Transfer() {
       const pickup = String(r[1] ?? '').trim()
       const pax = parseInt(r[2], 10)
       const alloggio = String(r[3] ?? '').trim()
+      const uominiRaw = parseInt(r[4], 10)
+      const uomini = Number.isFinite(uominiRaw) && uominiRaw >= 0 && uominiRaw <= pax ? uominiRaw : null
       if (!codice || !Number.isFinite(pax) || pax <= 0) continue
       if (/^codice|^cod\.|^prenotaz/i.test(codice)) continue
-      parsed.push({ codice, pickup_point: pickup, pax, alloggio })
+      parsed.push({ codice, pickup_point: pickup, pax, alloggio, uomini })
     }
     if (!parsed.length) { notify(t.tImportInvalid); return }
     setPreview(parsed)
@@ -158,7 +185,7 @@ export default function Transfer() {
     if (!subset.length) { notify(t.rosterImportNone); return }
     setBusy(true)
     const rows = subset.map(r => ({
-      transfer_id: id, codice: r.codice, pickup_point: r.pickup_point, pax: r.pax, alloggio: r.alloggio,
+      transfer_id: id, codice: r.codice, pickup_point: r.pickup_point, pax: r.pax, alloggio: r.alloggio, uomini: r.uomini,
     }))
     const { error } = await supabase.from('bus_gruppi').upsert(rows, { onConflict: 'transfer_id,codice' })
     setBusy(false)
@@ -234,7 +261,20 @@ export default function Transfer() {
       setBusy(false)
       if (error) { notify(t.tError(error.message)); return }
       setSelected(new Set())
-      notify(t.tAssignOk(tot, m.nome, liberi - tot))
+
+      // avviso soft se il bus risulta tutto un genere solo (dati noti, niente sconosciuti)
+      const prev = genderByMezzo[m.id] || { uomini: 0, donne: 0, sconosciuti: 0 }
+      let addU = 0, addD = 0, addUnk = 0
+      for (const g of sel) {
+        if (g.uomini == null) addUnk += restanti(g)
+        else { addU += g.uomini; addD += Math.max(0, g.pax - g.uomini) }
+      }
+      const nu = prev.uomini + addU, nd = prev.donne + addD, nunk = prev.sconosciuti + addUnk
+      if (nunk === 0 && nu + nd > 0 && (nu === 0 || nd === 0)) {
+        notify(t.tAssignOk(tot, m.nome, liberi - tot) + ' — ' + t.genderMonogender(m.nome))
+      } else {
+        notify(t.tAssignOk(tot, m.nome, liberi - tot))
+      }
       load()
       return
     }
@@ -355,15 +395,24 @@ export default function Transfer() {
     <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: selected.size ? 140 : 24 }}>
 
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <button onClick={() => navigate('/')} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
+        <button onClick={() => navigate(homePath)} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
         <span className="sub">
           <LiveDot /> <CountNum value={liberiFlotta} /> {t.liberi.toLowerCase()}
+          <button className="lang-toggle no-print" onClick={() => setShowHelp(true)} aria-label={t.helpBtn}>
+            <HelpCircle size={12} style={{ verticalAlign: -2 }} />
+          </button>
           <button className="lang-toggle no-print" onClick={toggleLang} aria-label="Cambia lingua / Change language">
             {lang === 'it' ? 'EN' : 'IT'}
           </button>
         </span>
       </div>
+
+      {showHelp && (
+        <HelpModal title={t.helpTitle} closeLabel={t.helpClose}
+          steps={agency ? t.helpStepsAgency : t.helpStepsStaff}
+          onClose={() => setShowHelp(false)} />
+      )}
 
       <div style={{ padding: '14px 16px 0' }}>
         <Gauge pct={pctFlotta} tone={flottaPiena ? 'full' : liberiFlotta < 0 ? 'over' : ''} style={{ height: 11 }} />
@@ -393,7 +442,7 @@ export default function Transfer() {
 
       <div className="no-print" style={{ display: 'flex', gap: 8, padding: '14px 16px', flexWrap: 'wrap' }}>
         <button className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={16} /> {t.importBtn}</button>
-        <button className="btn btn-outline" onClick={() => setShowRosterPicker(v => !v)}><ClipboardList size={16} /> {t.rosterImportFromRoster}</button>
+        {!agency && <button className="btn btn-outline" onClick={() => setShowRosterPicker(v => !v)}><ClipboardList size={16} /> {t.rosterImportFromRoster}</button>}
         <button className="btn btn-outline" onClick={autoFill} disabled={busy || !mezzi.length || totPax - totAss <= 0}>
           <Wand2 size={16} /> {t.autoFillBtn}
         </button>
@@ -512,6 +561,14 @@ export default function Transfer() {
               <div className={'acc' + (busOpen ? ' open' : '')}>
                 <div style={{ padding: 14 }}>
                 <Gauge pct={(used / m.capienza) * 100} tone={full ? 'full' : liberi < 0 ? 'over' : ''} />
+                {(() => {
+                  const gb = genderByMezzo[m.id]
+                  return gb && (gb.uomini + gb.donne + gb.sconosciuti > 0) ? (
+                    <div style={{ marginTop: 10 }}>
+                      <GenderBar uomini={gb.uomini} donne={gb.donne} sconosciuti={gb.sconosciuti} menLabel={t.menLabel} womenLabel={t.womenLabel} />
+                    </div>
+                  ) : null
+                })()}
                 {list.length === 0 && staffQui.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 12 }}>{t.emptyBusMsg}</div>}
                 {list.map(a => {
                   const g = gruppi.find(x => x.id === a.gruppo_id)
@@ -635,6 +692,20 @@ export default function Transfer() {
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontWeight: 600 }}>{g.codice}</span>
                           {g.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{g.alloggio}</span>}
+                          {genderEditFor === g.id ? (
+                            <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 5 }} onClick={e => e.stopPropagation()}>
+                              <input type="number" min="0" max={g.pax} className="input-field" style={{ width: 52, padding: '4px 7px', fontSize: 12 }}
+                                value={genderUomini} onChange={e => setGenderUomini(e.target.value)} autoFocus />
+                              <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{t.menLabel}</span>
+                              <button onClick={e => { e.preventDefault(); e.stopPropagation(); setGenere(g) }} className="btn btn-primary" style={{ padding: '3px 9px', fontSize: 11 }}>{t.okBtn}</button>
+                              <button onClick={e => { e.preventDefault(); e.stopPropagation(); setGenderEditFor(null) }} className="btn btn-ghost" style={{ padding: '3px 9px', fontSize: 11 }}>{t.cancelBtn}</button>
+                            </span>
+                          ) : (
+                            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setGenderEditFor(g.id); setGenderUomini(g.uomini != null ? String(g.uomini) : '') }}
+                              style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 5, fontSize: 11, color: g.uomini == null ? 'var(--text-tertiary)' : 'var(--text-secondary)' }}>
+                              <UserRound size={11} /> {g.uomini != null ? `${g.uomini}${t.menLabel[0]} · ${g.pax - g.uomini}${t.womenLabel[0]}` : t.genderUnknown}
+                            </button>
+                          )}
                         </span>
                         {r === 0
                           ? <span style={{ fontSize: 13, color: 'var(--go)', fontWeight: 700 }}>✓ {g.pax} {t.paxUnit}</span>

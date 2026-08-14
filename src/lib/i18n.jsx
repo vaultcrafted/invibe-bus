@@ -165,6 +165,37 @@ const dict = {
     tPurchaseOk: (attivita, pax, codice) => `${attivita} · ${pax} pax su ${codice}.`,
     tPurchaseRemoved: 'Vendita rimossa.',
     tPurchaseTooMany: (codice, totGruppo) => `${codice} ha ${totGruppo} pax nel gruppo: non puoi venderne di più su una singola attività.`,
+
+    // Genere M/F
+    menLabel: 'Uomini',
+    womenLabel: 'Donne',
+    genderUnknown: 'non indicato',
+    genderTapHint: 'tocca per indicare uomini/donne',
+    genderImbalanced: nome => `${nome} è sbilanciato: prova a mescolare più uomini e donne.`,
+    genderMonogender: nome => `${nome} è tutto un genere solo: meglio bilanciare prima di chiuderlo.`,
+
+    // Modalità agenzia
+    agencyModeTitle: 'Agenzia',
+    helpBtn: 'Guida',
+    helpTitle: 'Come funziona',
+    helpClose: 'Chiudi',
+    helpStepsStaff: [
+      ['Crea un transfer', 'Tocca "+ Nuovo transfer" e dagli un nome.'],
+      ['Porta dentro i gruppi', 'Carica l\'Excel con "Importa", oppure usa "Da file madre" se hai già l\'anagrafica pronta.'],
+      ['Aggiungi i bus', 'Scegli la capienza: 50, 53, 54, 63 o un numero a tua scelta.'],
+      ['Assegna', 'Spunta uno o più gruppi in basso, poi tocca "Assegna qui" sul bus che vuoi. Un gruppo va sempre tutto insieme, mai diviso.'],
+      ['Riempi automaticamente', 'Se vuoi, lascia fare all\'app: piazza tutti i gruppi nei bus migliori in un tocco.'],
+      ['Staff a bordo', '"Aggiungi staff" su un bus per mettere CM/ACM/DJ che occupano un posto.'],
+      ['Condividi', 'Tocca "Condividi" per generare un link di sola lettura, sempre aggiornato, da mandare a chi ti serve.'],
+    ],
+    helpStepsAgency: [
+      ['Apri un transfer', 'Tocca un transfer nella lista per vedere i suoi bus e gruppi.'],
+      ['Aggiungi i bus', 'Scegli la capienza: 50, 53, 54, 63 o un numero a tua scelta.'],
+      ['Assegna i gruppi', 'Spunta uno o più gruppi in basso, poi tocca "Assegna qui" sul bus che vuoi. Un gruppo va sempre tutto insieme, mai diviso.'],
+      ['Riempi automaticamente', 'Se vuoi, lascia fare all\'app: piazza tutti i gruppi nei bus migliori in un tocco.'],
+      ['Staff a bordo', '"Aggiungi staff" su un bus per mettere una persona che occupa un posto, senza codice prenotazione.'],
+      ['Excel', 'Scarica sempre la lista aggiornata per bus, pronta per gli autisti.'],
+    ],
   },
 
   en: {
@@ -328,6 +359,37 @@ const dict = {
     tPurchaseOk: (attivita, pax, codice) => `${attivita} · ${pax} pax on ${codice}.`,
     tPurchaseRemoved: 'Sale removed.',
     tPurchaseTooMany: (codice, totGruppo) => `${codice} has ${totGruppo} pax in the group: you can't sell more than that on a single activity.`,
+
+    // M/F gender
+    menLabel: 'Men',
+    womenLabel: 'Women',
+    genderUnknown: 'not set',
+    genderTapHint: 'tap to set men/women',
+    genderImbalanced: nome => `${nome} is unbalanced: try mixing more men and women.`,
+    genderMonogender: nome => `${nome} is all one gender: better balance it before closing.`,
+
+    // Agency mode
+    agencyModeTitle: 'Agency',
+    helpBtn: 'Guide',
+    helpTitle: 'How it works',
+    helpClose: 'Close',
+    helpStepsStaff: [
+      ['Create a transfer', 'Tap "+ New transfer" and give it a name.'],
+      ['Bring in the groups', 'Upload the Excel with "Import", or use "From master file" if the roster is ready.'],
+      ['Add the buses', 'Pick a size: 50, 53, 54, 63, or any number you like.'],
+      ['Assign', 'Check one or more groups below, then tap "Assign here" on the bus you want. A group always goes together, never split.'],
+      ['Auto-fill', 'Let the app do it: it places every group on the best-fitting bus in one tap.'],
+      ['Staff on board', '"Add staff" on a bus for CM/ACM/DJ taking up a seat.'],
+      ['Share', 'Tap "Share" to generate a read-only, always up-to-date link to send.'],
+    ],
+    helpStepsAgency: [
+      ['Open a transfer', 'Tap a transfer in the list to see its buses and groups.'],
+      ['Add the buses', 'Pick a size: 50, 53, 54, 63, or any number you like.'],
+      ['Assign the groups', 'Check one or more groups below, then tap "Assign here" on the bus you want. A group always goes together, never split.'],
+      ['Auto-fill', 'Let the app do it: it places every group on the best-fitting bus in one tap.'],
+      ['Staff on board', '"Add staff" on a bus for a person taking up a seat, no booking code needed.'],
+      ['Excel', 'Always download the up-to-date per-bus list, ready for the drivers.'],
+    ],
   },
 }
 

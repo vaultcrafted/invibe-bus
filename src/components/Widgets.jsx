@@ -41,6 +41,61 @@ export function LiveDot() {
   return <span className="live-dot" aria-hidden="true" />
 }
 
+// Guida rapida: pannello con passi numerati, richiudibile.
+export function HelpModal({ title, steps, closeLabel, onClose }) {
+  return (
+    <div role="dialog" aria-modal="true" style={{
+      position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(11,13,16,.55)',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }} onClick={onClose}>
+      <div className="card enter" style={{ width: '100%', maxWidth: 560, maxHeight: '82vh', overflow: 'auto', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+        onClick={e => e.stopPropagation()}>
+        <div className="board-strip" style={{ position: 'sticky', top: 0 }}>
+          <span>{title}</span>
+          <button onClick={onClose} aria-label={closeLabel} style={{ display: 'flex' }}><span style={{ fontSize: 18 }}>×</span></button>
+        </div>
+        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {steps.map(([head, body], i) => (
+            <div key={i} style={{ display: 'flex', gap: 12 }}>
+              <div style={{
+                flexShrink: 0, width: 26, height: 26, borderRadius: 'var(--r-full)', background: 'var(--iv-blue-light)',
+                color: 'var(--iv-blue-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 800, fontSize: 13, fontFamily: 'var(--mono)',
+              }}>{i + 1}</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 2 }}>{head}</div>
+                <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{body}</div>
+              </div>
+            </div>
+          ))}
+          <button className="btn btn-primary" onClick={onClose} style={{ marginTop: 6 }}>{closeLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Composizione uomini/donne di un bus: barra a due colori + numeri.
+export function GenderBar({ uomini, donne, sconosciuti = 0, menLabel, womenLabel }) {
+  const tot = uomini + donne + sconosciuti
+  if (!tot) return null
+  const pctU = (uomini / tot) * 100
+  const pctD = (donne / tot) * 100
+  return (
+    <div>
+      <div style={{ height: 7, borderRadius: 'var(--r-full)', overflow: 'hidden', display: 'flex', background: 'var(--bg-mute)' }}>
+        {uomini > 0 && <div style={{ width: pctU + '%', background: 'var(--iv-blue)' }} />}
+        {donne > 0 && <div style={{ width: pctD + '%', background: '#F472B6' }} />}
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 5, fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--mono)' }}>
+        <span>{menLabel} {uomini}</span>
+        <span>{womenLabel} {donne}</span>
+        {sconosciuti > 0 && <span>? {sconosciuti}</span>}
+      </div>
+    </div>
+  )
+}
+
 // Ciambella capienza flotta: reale, non decorativa. Si riempie all'apertura.
 export function FleetDonut({ pct, size = 108 }) {
   const [dash, setDash] = useState(0)
