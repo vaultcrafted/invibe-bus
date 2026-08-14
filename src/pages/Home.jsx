@@ -131,9 +131,6 @@ export default function Home() {
         </span>
         <span className="sub">
           <LiveDot /> {t.manifestCount(transfers.length)}
-          <button className="lang-toggle no-print" onClick={() => navigate('/roster')} aria-label={t.rosterTitle} style={{ marginLeft: 2 }}>
-            <ClipboardList size={12} style={{ verticalAlign: -2 }} /> {t.rosterBackHome}
-          </button>
           <button className="lang-toggle no-print" onClick={toggleLang} aria-label="Cambia lingua / Change language">
             {lang === 'it' ? 'EN' : 'IT'}
           </button>
@@ -278,6 +275,11 @@ export default function Home() {
             )}
           </div>
         )}
+
+        <button className="no-print" onClick={() => navigate('/roster')}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '14px 0 6px', color: 'var(--text-tertiary)', fontSize: 12.5 }}>
+          <ClipboardList size={12} /> {t.rosterBackHome}
+        </button>
       </div>
     </div>
   )

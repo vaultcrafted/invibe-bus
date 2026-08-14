@@ -158,7 +158,7 @@ export default function Share() {
                       {a.g.alloggio && <span style={{ display: 'block', fontSize: 11.5, fontWeight: 400, color: 'var(--text-tertiary)' }}>{a.g.alloggio}</span>}
                     </span>
                     <span style={{ flex: 1, color: 'var(--text-secondary)', fontSize: 13, textAlign: 'right' }}>{a.g.pickup_point}</span>
-                    <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{a.pax}{a.pax < a.g.pax ? `/${a.g.pax}` : ''}</span>
+                    <span className="tab-num" style={{ minWidth: 34, textAlign: 'right' }}>{a.pax}</span>
                   </div>
                 ))}
                 {staffQui.map(s => (

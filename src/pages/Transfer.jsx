@@ -516,7 +516,6 @@ export default function Transfer() {
                 {list.map(a => {
                   const g = gruppi.find(x => x.id === a.gruppo_id)
                   if (!g) return null
-                  const diviso = a.pax < g.pax
                   return (
                     <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
                       <span style={{ flex: 1, minWidth: 0 }}>
@@ -524,8 +523,7 @@ export default function Transfer() {
                         {g.alloggio && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-tertiary)' }}>{g.alloggio}</span>}
                       </span>
                       <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{g.pickup_point}</span>
-                      <span className="tab-num" style={{ fontSize: 14 }}>{a.pax}{diviso ? `/${g.pax}` : ''}</span>
-                      {diviso && <span className="pill pill-warn">{t.diviso}</span>}
+                      <span className="tab-num" style={{ fontSize: 14 }}>{a.pax}</span>
                       <button className="no-print" onClick={() => unassign(a)} aria-label={t.deleteBtn + ' ' + g.codice} style={{ color: 'var(--stop)', display: 'flex', padding: 4 }}><X size={15} /></button>
                     </div>
                   )
