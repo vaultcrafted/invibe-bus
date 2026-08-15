@@ -16,6 +16,7 @@ export default function Home() {
   const [totMezzi, setTotMezzi] = useState(0)
   const [totCapienza, setTotCapienza] = useState(0)
   const [totUsedFlotta, setTotUsedFlotta] = useState(0)
+  const [totRosterPax, setTotRosterPax] = useState(0)
   const [activity, setActivity] = useState([])
   const [creating, setCreating] = useState(false)
   const [nome, setNome] = useState('')
@@ -60,6 +61,9 @@ export default function Home() {
     const transferById = {}
     for (const t2 of data || []) transferById[t2.id] = t2.nome
 
+    const { data: roster } = await supabase.from('bus_roster').select('pax')
+    setTotRosterPax((roster || []).reduce((s, r) => s + r.pax, 0))
+
     if (ids.length) {
       const [g, a, m, st] = await Promise.all([
         supabase.from('bus_gruppi').select('id, transfer_id, codice, pax').in('transfer_id', ids),
@@ -98,7 +102,7 @@ export default function Home() {
   useEffect(() => {
     load()
     const ch = supabase.channel('home-bus')
-    for (const table of ['bus_transfer', 'bus_gruppi', 'bus_assegnazioni', 'bus_mezzi', 'bus_staff']) {
+    for (const table of ['bus_transfer', 'bus_gruppi', 'bus_assegnazioni', 'bus_mezzi', 'bus_staff', 'bus_roster']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => load())
     }
     ch.subscribe()
@@ -121,7 +125,7 @@ export default function Home() {
     load()
   }
 
-  const totPaxGestiti = Object.values(stats).reduce((s, v) => s + v.tot, 0)
+  const totPaxGestiti = totRosterPax > 0 ? totRosterPax : Object.values(stats).reduce((s, v) => s + v.tot, 0)
   const linkAttivi = transfers.filter(t2 => t2.condiviso).length
   const liberiFlotta = totCapienza - totUsedFlotta
   const pctFlotta = totCapienza ? (totUsedFlotta / totCapienza) * 100 : 0
