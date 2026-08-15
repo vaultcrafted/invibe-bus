@@ -70,7 +70,7 @@ export default function Share() {
     return (
       <div style={{ padding: '64px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
         <div className="board-strip" style={{ borderRadius: 'var(--r-md)', justifyContent: 'center', marginBottom: 20, gap: 10 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><img src="/logo-header.png" alt="" width="18" height="18" style={{ display: 'block' }} /> {t.appName}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><img src="/logo-header.png" alt="" width="24" height="24" style={{ display: 'block' }} /> {t.appName}</span>
           <LangBtn />
         </div>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{t.linkNotActiveTitle}</div>
@@ -89,7 +89,7 @@ export default function Share() {
     <div className="shell" style={{ flex: 1, paddingBottom: 32 }}>
 
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><img src="/logo-header.png" alt="" width="18" height="18" style={{ display: 'block' }} /> {t.appName}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><img src="/logo-header.png" alt="" width="24" height="24" style={{ display: 'block' }} /> {t.appName}</span>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
         <span className="sub"><LiveDot /> <CountNum value={liberiFlotta} /> {t.liberi.toLowerCase()} <LangBtn /></span>
       </div>
