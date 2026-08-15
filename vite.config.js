@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png', 'icon-192-maskable.png', 'icon-512-maskable.png', 'apple-touch-icon-180.png', 'favicon.ico'],
+      includeAssets: ['icon-192.png', 'icon-512.png', 'icon-192-maskable.png', 'icon-512-maskable.png', 'apple-touch-icon-180.png', 'favicon.ico', 'logo-header.png'],
       manifest: {
         name: 'Invibe Bus',
         short_name: 'Invibe Bus',

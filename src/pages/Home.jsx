@@ -130,7 +130,7 @@ export default function Home() {
     <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <Bus size={16} className="flag" /> {t.appName}
+          <img src="/logo-header.png" alt="" width="20" height="20" style={{ display: 'block', flexShrink: 0 }} /> {t.appName}
         </span>
         <span className="sub">
           <LiveDot /> {t.manifestCount(transfers.length)}
