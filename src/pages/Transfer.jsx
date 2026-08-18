@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import * as XLSX from 'xlsx'
 import {
   ArrowLeft, Upload, Plus, Bus, Trash2, Share2, Download,
-  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin, ClipboardList, HelpCircle, UserRound
+  ChevronDown, Check, X, Users, UserPlus, Wand2, AlertTriangle, MapPin, ClipboardList, HelpCircle, UserRound, Pencil
 } from 'lucide-react'
 import { Gauge, CountNum, LiveDot, busColorStyle, HelpModal, GenderBar } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
@@ -21,6 +21,8 @@ export default function Transfer() {
   const [showHelp, setShowHelp] = useState(false)
   const [genderEditFor, setGenderEditFor] = useState(null)
   const [genderUomini, setGenderUomini] = useState('')
+  const [renamingBus, setRenamingBus] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const [transfer, setTransfer] = useState(null)
   const [gruppi, setGruppi] = useState([])
@@ -216,8 +218,12 @@ export default function Transfer() {
   async function addBus(cap) {
     const capienza = parseInt(cap, 10)
     if (!Number.isFinite(capienza) || capienza <= 0) return
-    const ordine = mezzi.length
-    await supabase.from('bus_mezzi').insert({ transfer_id: id, nome: 'Bus ' + (ordine + 1), capienza, ordine })
+    const ordine = mezzi.length ? Math.max(...mezzi.map(m => m.ordine)) + 1 : 0
+    const numero = mezzi.length ? Math.max(...mezzi.map(m => {
+      const n = parseInt(m.nome.replace(/^Bus\s*/i, ''), 10)
+      return Number.isFinite(n) ? n : 0
+    })) + 1 : 1
+    await supabase.from('bus_mezzi').insert({ transfer_id: id, nome: 'Bus ' + numero, capienza, ordine })
     setAddingBus(false); setCustomCap('')
     load()
   }
@@ -226,6 +232,14 @@ export default function Transfer() {
     const used = usedByMezzo[m.id] || 0
     if (used > 0 && !confirm(t.confirmRemoveBus(m.nome, used))) return
     await supabase.from('bus_mezzi').delete().eq('id', m.id)
+    load()
+  }
+
+  async function renameBus(m) {
+    const nome = renameValue.trim()
+    if (!nome) return
+    await supabase.from('bus_mezzi').update({ nome }).eq('id', m.id)
+    setRenamingBus(null); setRenameValue('')
     load()
   }
 
@@ -534,15 +548,33 @@ export default function Transfer() {
           return (
             <div key={m.id} className="stub enter" style={{ '--d': (i * 55) + 'ms' }}>
               <div className="stub-head">
-                <button onClick={() => { const c = new Set(collapsedBuses); c.has(m.id) ? c.delete(m.id) : c.add(m.id); setCollapsedBuses(c) }}
-                  style={{ display: 'flex', alignItems: 'stretch', width: '100%', textAlign: 'left' }}>
+                <div role="button" tabIndex={0}
+                  onClick={() => { const c = new Set(collapsedBuses); c.has(m.id) ? c.delete(m.id) : c.add(m.id); setCollapsedBuses(c) }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const c = new Set(collapsedBuses); c.has(m.id) ? c.delete(m.id) : c.add(m.id); setCollapsedBuses(c) } }}
+                  style={{ display: 'flex', alignItems: 'stretch', width: '100%', textAlign: 'left', cursor: 'pointer' }}>
                   <div className={'stub-tag stub-tag--colored' + (full ? ' stub-tag--done' : liberi < 0 ? ' stub-tag--danger' : '')}
                     style={busColorStyle(i)}>
                     <span className="lbl">{full ? t.pieno : t.liberi}</span>
                     <span className="num"><CountNum value={liberi} /></span>
                   </div>
                   <div className="stub-head-body">
-                    <span className="name">{m.nome}</span>
+                    {renamingBus === m.id ? (
+                      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                        <input className="input-field" style={{ padding: '4px 8px', fontSize: 13, width: 140, color: 'var(--text-primary)' }}
+                          value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus
+                          onKeyDown={e => e.key === 'Enter' && renameBus(m)} />
+                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); renameBus(m) }} style={{ color: 'var(--on-dark)', display: 'flex', padding: 3 }}><Check size={15} /></button>
+                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setRenamingBus(null) }} style={{ color: 'var(--on-dark-dim)', display: 'flex', padding: 3 }}><X size={15} /></button>
+                      </span>
+                    ) : (
+                      <span className="name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {m.nome}
+                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setRenamingBus(m.id); setRenameValue(m.nome) }}
+                          aria-label="rename" style={{ color: 'var(--on-dark-dim)', display: 'flex', padding: 2, flexShrink: 0 }}>
+                          <Pencil size={12} />
+                        </button>
+                      </span>
+                    )}
                     <span className="meta"><CountNum value={used} />/{m.capienza} {t.seatsOccupied}</span>
                     {stops.length > 0 && (
                       <span className="meta" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
@@ -556,7 +588,7 @@ export default function Transfer() {
                   <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', flexShrink: 0 }}>
                     <ChevronDown size={18} style={{ transition: 'transform .25s ease', transform: busOpen ? 'rotate(180deg)' : 'none', color: 'var(--on-dark-dim)' }} />
                   </div>
-                </button>
+                </div>
               </div>
               <div className={'acc' + (busOpen ? ' open' : '')}>
                 <div style={{ padding: 14 }}>
