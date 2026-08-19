@@ -166,6 +166,16 @@ const dict = {
     tPurchaseRemoved: 'Vendita rimossa.',
     tPurchaseTooMany: (codice, totGruppo) => `${codice} ha ${totGruppo} pax nel gruppo: non puoi venderne di più su una singola attività.`,
 
+    // Turni
+    turniTitle: 'Turni',
+    turniSubtitle: 'Scegli il turno su cui lavorare. Ognuno ha la sua anagrafica, separata dagli altri.',
+    turnoActive: 'attivo',
+    turnoOpen: 'Apri',
+    turnoTransferCount: n => `${n} transfer`,
+    turnoRosterCount: n => `${n} capigruppo`,
+    backToTurni: 'Turni',
+    noActiveTurno: 'Nessun turno attivo al momento. Chiedi allo staff di aprirne uno.',
+
     // Genere M/F
     menLabel: 'Uomini',
     womenLabel: 'Donne',
@@ -359,6 +369,16 @@ const dict = {
     tPurchaseOk: (attivita, pax, codice) => `${attivita} · ${pax} pax on ${codice}.`,
     tPurchaseRemoved: 'Sale removed.',
     tPurchaseTooMany: (codice, totGruppo) => `${codice} has ${totGruppo} pax in the group: you can't sell more than that on a single activity.`,
+
+    // Turni
+    turniTitle: 'Shifts',
+    turniSubtitle: 'Pick the shift to work on. Each one has its own roster, kept separate from the others.',
+    turnoActive: 'active',
+    turnoOpen: 'Open',
+    turnoTransferCount: n => `${n} transfers`,
+    turnoRosterCount: n => `${n} group leaders`,
+    backToTurni: 'Shifts',
+    noActiveTurno: 'No active shift right now. Ask staff to open one.',
 
     // M/F gender
     menLabel: 'Men',

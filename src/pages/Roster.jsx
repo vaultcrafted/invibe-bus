@@ -4,10 +4,12 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { ArrowLeft, Upload, Search, Trash2, Check, X, Users, Plus, Tag, UserRound } from 'lucide-react'
 import { useLang } from '../lib/i18n.jsx'
+import { useTurno } from '../lib/turno.jsx'
 
 export default function Roster() {
   const navigate = useNavigate()
   const { t, lang, toggleLang } = useLang()
+  const turno = useTurno()
   const fileRef = useRef(null)
 
   const [rows, setRows] = useState([])
@@ -26,23 +28,25 @@ export default function Roster() {
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600) }
 
   async function load() {
-    const [r, a] = await Promise.all([
-      supabase.from('bus_roster').select('*').order('codice'),
-      supabase.from('bus_acquisti').select('*'),
-    ])
-    setRows(r.data || [])
-    setAcquisti(a.data || [])
+    const { data: r } = await supabase.from('bus_roster').select('*').eq('turno_id', turno.id).order('codice')
+    setRows(r || [])
+    const ids = (r || []).map(x => x.id)
+    const { data: a } = ids.length
+      ? await supabase.from('bus_acquisti').select('*').in('roster_id', ids)
+      : { data: [] }
+    setAcquisti(a || [])
     setLoading(false)
   }
 
   useEffect(() => {
     load()
-    const ch = supabase.channel('roster')
+    const ch = supabase.channel('roster-' + turno.id)
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'bus_roster' }, () => load())
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'bus_acquisti' }, () => load())
     ch.subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turno.id])
 
   const acquistiByRoster = useMemo(() => {
     const m = {}
@@ -110,7 +114,7 @@ export default function Roster() {
   async function confirmImport() {
     setBusy(true)
     const { error } = await supabase.from('bus_roster')
-      .upsert(preview.map(r => ({ ...r, updated_at: new Date().toISOString() })), { onConflict: 'codice' })
+      .upsert(preview.map(r => ({ ...r, turno_id: turno.id, updated_at: new Date().toISOString() })), { onConflict: 'turno_id,codice' })
     setBusy(false)
     if (error) { notify(t.tError(error.message)); return }
     notify(t.tRosterUploadOk(preview.length))
@@ -137,8 +141,8 @@ export default function Roster() {
   return (
     <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <button onClick={() => navigate('/')} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
-        <span style={{ flex: 1, textAlign: 'center' }}>{t.rosterBackHome}</span>
+        <button onClick={() => navigate('/turno/' + turno.codice)} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
+        <span style={{ flex: 1, textAlign: 'center' }}>{t.rosterBackHome} · {turno.codice}</span>
         <span className="sub">
           {rows.length}
           <button className="lang-toggle no-print" onClick={toggleLang} aria-label="Cambia lingua / Change language">

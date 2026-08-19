@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Plus, Bus, ChevronRight, Trash2, Users, Share2, UserPlus, Activity, ClipboardList, HelpCircle } from 'lucide-react'
+import { Plus, Bus, ChevronRight, Trash2, Users, Share2, UserPlus, Activity, ClipboardList, HelpCircle, ChevronLeft } from 'lucide-react'
 import { Gauge, CountNum, LiveDot, StatCard, FleetDonut, HelpModal } from '../components/Widgets'
 import { useLang } from '../lib/i18n.jsx'
 import { useMode } from '../lib/mode.jsx'
+import { useTurno } from '../lib/turno.jsx'
 
 export default function Home() {
   const navigate = useNavigate()
   const { t, lang, toggleLang } = useLang()
   const { agency, homePath, transferPath } = useMode()
+  const turno = useTurno()
   const [showHelp, setShowHelp] = useState(false)
   const [transfers, setTransfers] = useState([])
   const [stats, setStats] = useState({})
@@ -55,13 +57,13 @@ export default function Home() {
   }
 
   async function load() {
-    const { data } = await supabase.from('bus_transfer').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase.from('bus_transfer').select('*').eq('turno_id', turno.id).order('created_at', { ascending: false })
     setTransfers(data || [])
     const ids = (data || []).map(t2 => t2.id)
     const transferById = {}
     for (const t2 of data || []) transferById[t2.id] = t2.nome
 
-    const { data: roster } = await supabase.from('bus_roster').select('pax')
+    const { data: roster } = await supabase.from('bus_roster').select('pax').eq('turno_id', turno.id)
     setTotRosterPax((roster || []).reduce((s, r) => s + r.pax, 0))
 
     if (ids.length) {
@@ -101,13 +103,14 @@ export default function Home() {
 
   useEffect(() => {
     load()
-    const ch = supabase.channel('home-bus')
+    const ch = supabase.channel('home-bus-' + turno.id)
     for (const table of ['bus_transfer', 'bus_gruppi', 'bus_assegnazioni', 'bus_mezzi', 'bus_staff', 'bus_roster']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => load())
     }
     ch.subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turno.id])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [lang])
@@ -115,7 +118,7 @@ export default function Home() {
   async function create() {
     const n = nome.trim()
     if (!n) return
-    const { data, error } = await supabase.from('bus_transfer').insert({ nome: n }).select().single()
+    const { data, error } = await supabase.from('bus_transfer').insert({ nome: n, turno_id: turno.id }).select().single()
     if (!error && data) navigate(transferPath(data.id))
   }
 
@@ -134,12 +137,17 @@ export default function Home() {
     <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <img src="/logo-header.png" alt="" width="26" height="26" style={{ display: 'block', flexShrink: 0 }} /> {t.appName}
+          {!agency && (
+            <button onClick={() => navigate('/')} aria-label={t.backToTurni} style={{ display: 'flex' }}>
+              <ChevronLeft size={16} />
+            </button>
+          )}
+          <img src="/logo-header.png" alt="" width="26" height="26" style={{ display: 'block', flexShrink: 0 }} /> {t.appName} · {turno.codice}
         </span>
         <span className="sub">
           <LiveDot /> {t.manifestCount(transfers.length)}
           {!agency && (
-            <button className="lang-toggle no-print" onClick={() => navigate('/roster')} aria-label={t.rosterTitle} style={{ marginLeft: 2 }}>
+            <button className="lang-toggle no-print" onClick={() => navigate('/turno/' + turno.codice + '/roster')} aria-label={t.rosterTitle} style={{ marginLeft: 2 }}>
               <ClipboardList size={12} style={{ verticalAlign: -2 }} /> {t.rosterBackHome}
             </button>
           )}
@@ -297,10 +305,12 @@ export default function Home() {
           </div>
         )}
 
-        <button className="no-print" onClick={() => navigate('/roster')}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '14px 0 6px', color: 'var(--text-tertiary)', fontSize: 12.5 }}>
-          <ClipboardList size={12} /> {t.rosterBackHome}
-        </button>
+        {!agency && (
+          <button className="no-print" onClick={() => navigate('/turno/' + turno.codice + '/roster')}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '14px 0 6px', color: 'var(--text-tertiary)', fontSize: 12.5 }}>
+            <ClipboardList size={12} /> {t.rosterBackHome}
+          </button>
+        )}
       </div>
     </div>
   )

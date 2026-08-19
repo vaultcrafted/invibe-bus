@@ -25,6 +25,7 @@ export default function Transfer() {
   const [renameValue, setRenameValue] = useState('')
 
   const [transfer, setTransfer] = useState(null)
+  const [turnoCodice, setTurnoCodice] = useState(null)
   const [gruppi, setGruppi] = useState([])
   const [mezzi, setMezzi] = useState([])
   const [assegnazioni, setAssegnazioni] = useState([])
@@ -52,13 +53,17 @@ export default function Transfer() {
   function notify(msg) { setToast(msg); setTimeout(() => setToast(''), 2600) }
 
   useEffect(() => {
-    if (!showRosterPicker) return
-    supabase.from('bus_acquisti').select('attivita, pax').then(({ data }) => {
-      const m = {}
-      for (const a of data || []) m[a.attivita] = (m[a.attivita] || 0) + a.pax
-      setActivities(Object.entries(m).sort((a, b) => a[0].localeCompare(b[0], 'it')))
+    if (!showRosterPicker || !transfer) return
+    supabase.from('bus_roster').select('id').eq('turno_id', transfer.turno_id).then(({ data: roster }) => {
+      const rosterIds = (roster || []).map(r => r.id)
+      if (!rosterIds.length) { setActivities([]); return }
+      supabase.from('bus_acquisti').select('attivita, pax').in('roster_id', rosterIds).then(({ data }) => {
+        const m = {}
+        for (const a of data || []) m[a.attivita] = (m[a.attivita] || 0) + a.pax
+        setActivities(Object.entries(m).sort((a, b) => a[0].localeCompare(b[0], 'it')))
+      })
     })
-  }, [showRosterPicker])
+  }, [showRosterPicker, transfer])
 
   async function load() {
     const [tr, g, m, a, s] = await Promise.all([
@@ -74,6 +79,10 @@ export default function Transfer() {
     setAssegnazioni(a.data || [])
     setStaff(s.data || [])
     setLoading(false)
+    if (tr.data?.turno_id) {
+      supabase.from('bus_turni').select('codice').eq('id', tr.data.turno_id).maybeSingle()
+        .then(({ data }) => { if (data) setTurnoCodice(data.codice) })
+    }
   }
 
   useEffect(() => {
@@ -181,7 +190,7 @@ export default function Transfer() {
 
   async function importFromRoster(onlyPacchetto) {
     setShowRosterPicker(false)
-    const { data: roster } = await supabase.from('bus_roster').select('*')
+    const { data: roster } = await supabase.from('bus_roster').select('*').eq('turno_id', transfer.turno_id)
     if (!roster || !roster.length) { notify(t.rosterImportNone); return }
     const subset = onlyPacchetto ? roster.filter(r => r.escursioni) : roster
     if (!subset.length) { notify(t.rosterImportNone); return }
@@ -198,10 +207,11 @@ export default function Transfer() {
 
   async function importFromActivity(attivita) {
     setShowRosterPicker(false)
-    const [{ data: roster }, { data: acq }] = await Promise.all([
-      supabase.from('bus_roster').select('*'),
-      supabase.from('bus_acquisti').select('*').eq('attivita', attivita),
-    ])
+    const { data: roster } = await supabase.from('bus_roster').select('*').eq('turno_id', transfer.turno_id)
+    const rosterIds = (roster || []).map(r => r.id)
+    const { data: acq } = rosterIds.length
+      ? await supabase.from('bus_acquisti').select('*').eq('attivita', attivita).in('roster_id', rosterIds)
+      : { data: [] }
     if (!acq || !acq.length) { notify(t.rosterImportNone); return }
     setBusy(true)
     const rows = acq.map(a => {
@@ -409,7 +419,7 @@ export default function Transfer() {
     <div className="shell" style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: selected.size ? 140 : 24 }}>
 
       <div className="board-strip" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-        <button onClick={() => navigate(homePath)} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
+        <button onClick={() => navigate(agency ? homePath : (turnoCodice ? '/turno/' + turnoCodice : homePath))} aria-label={t.back} style={{ display: 'flex' }}><ArrowLeft size={16} /></button>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{transfer.nome}</span>
         <span className="sub">
           <LiveDot /> <CountNum value={liberiFlotta} /> {t.liberi.toLowerCase()}
